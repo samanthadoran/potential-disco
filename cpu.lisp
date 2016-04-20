@@ -5,7 +5,7 @@
   (:use :cl :cl-user)
   (:export #:make-cpu #:pages-differ #:reset #:power-on #:pull-stack
            #:push-stack #:pull16 #:push16 #:cpu-cycles #:cpu-accumulator #:cpu-x
-           #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory))
+           #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch))
 
 (in-package :6502-cpu)
 
@@ -21,6 +21,14 @@
   (pc 0 :type (unsigned-byte 16))
   (sp 0 :type (unsigned-byte 8))
   (memory (make-array #x800 :element-type '(unsigned-byte 8))))
+
+(defstruct instruction
+  "6502 instruction"
+  (unmasked-opcode 0 :type (unsigned-byte 8))
+  (opcode 0 :type (unsigned-byte 8))
+  (hi-byte 0 :type (unsigned-byte 8))
+  (lo-byte 0 :type (unsigned-byte 8))
+  (addressing-mode :implicit))
 
 (defun wrap-byte (val)
   (logand #xFF val))
@@ -69,3 +77,48 @@
   "Push twice."
   (push-stack c (wrap-byte (ash val -8)))
   (push-stack c (wrap-byte val)))
+
+(defun step-pc (c mode)
+  "Step the pc according to the addressing mode."
+  (setf
+   (cpu-pc c)
+   (wrap-word
+    (+
+     (cpu-pc c)
+     (cond
+       ((equal mode :implicit) 1)
+       ((equal mode :accumulator) 1)
+       ((equal mode :immediate) 2)
+       ((equal mode :zero-page) 2)
+       ((equal mode :absolute) 2)
+       ((equal mode :relative) 2)
+       ((equal mode :indirect) 2)
+       ((equal mode :zero-page-indexed-x) 2)
+       ((equal mode :zero-page-indexed-y) 2)
+       ((equal mode :absolute-indexed-x) 2)
+       ((equal mode :absolute-indexed-y) 2)
+       ((equal mode :indexed-indirect) 2)
+       ((equal mode :indirect-indexed) 2)
+       (T 1)))))) ;Silence warnings with this last line
+
+(defun fetch (c)
+  "Fetch the next instruction from memory"
+  (let ((inst (make-instruction)))
+    (setf
+     (instruction-unmasked-opcode inst)
+     (aref (cpu-memory c) (cpu-pc c)))
+    (setf
+     (instruction-lo-byte inst)
+     (aref
+      (cpu-memory c)
+      (wrap-word (+ (cpu-pc c) 1))))
+    (setf
+     (instruction-hi-byte inst)
+     (aref
+      (cpu-memory c)
+      (wrap-word (+ (cpu-pc c) 2))))
+    inst))
+
+(defun decode (opcode)
+  "Decodes the opcode."
+  opcode)
