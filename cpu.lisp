@@ -276,15 +276,15 @@
     ((opcode (instruction-unmasked-opcode inst))
      (lo-byte (instruction-lo-byte inst))
      (hi-byte (instruction-hi-byte inst))
-     (cc (logand opcode #x03))
-     (bbb (logand (ash opcode -2) #x07))
-     (aaa (logand (ash opcode -5) #x07))
-     (masked-opcode (logand opcode #xE3)))
+     (cc (logand (instruction-unmasked-opcode inst) #x03))
+     (bbb (logand (ash (instruction-unmasked-opcode inst) -2) #x07))
+     (aaa (logand (ash (instruction-unmasked-opcode inst) -5) #x07))
+     (masked-opcode (logand (instruction-unmasked-opcode inst) #xE3)))
     (cond
       ((= cc 0)
        (cond
          ;Branching
-         ((member opcode '(#x10, #x30, #x50, #x70, #x90, #xB0, #xD0, #xF0))
+         ((member opcode '(#x10 #x30 #x50 #x70 #x90 #xB0 #xD0 #xF0))
           (make-instruction
            :addressing-mode :relative
            :opcode opcode
@@ -292,7 +292,7 @@
            :hi-byte hi-byte
            :lo-byte lo-byte))
          ;BRK, RTI, RTS> interrupt and subroutines
-         ((member opcode '(#x0, #x40, #x60))
+         ((member opcode '(#x0 #x40 #x60))
           (make-instruction
            :addressing-mode :implicit
            :opcode opcode
@@ -300,13 +300,13 @@
            :hi-byte hi-byte
            :lo-byte lo-byte))
          ;JSR ABS and BIT ABS
-         ((member opcode '(#x20, #x2C))
+         ((member opcode '(#x20 #x2C))
           (make-instruction
            :addressing-mode :absolute
            :opcode opcode
            :unmasked-opcode opcode
            :hi-byte hi-byte
-           :lo-byte lo-byte)))
+           :lo-byte lo-byte))
          ;BIT ZP
          ((= opcode #x24)
           (make-instruction
@@ -324,15 +324,15 @@
            :hi-byte hi-byte
            :lo-byte lo-byte))
          ;A bunch of single byte instructions that follow no pattern
-         ((member opcode '(#x08, #x28, #x48, #x68, #x88, #xA8, #xC8, #xE8, #x18,
-                            #x38, #x58, #x78, #x98, #xB8, #xD8, #xF8))
+         ((member opcode '(#x08 #x28 #x48 #x68 #x88 #xA8 #xC8 #xE8 #x18
+                            #x38 #x58 #x78 #x98 #xB8 #xD8 #xF8))
           (make-instruction
            :addressing-mode :implicit
            :opcode opcode
            :unmasked-opcode opcode
            :hi-byte hi-byte
            :lo-byte lo-byte))
-         (cond
+         (T (cond
            ((= bbb 0)
             (make-instruction
              :addressing-mode :immediate
@@ -368,7 +368,7 @@
              :unmasked-opcode opcode
              :hi-byte hi-byte
              :lo-byte lo-byte))
-           (T (print "BAD OP! Got to default case in cc=0"))))
+           (T (print "BAD OP! Got to default case in cc=0"))))))
       ((= cc 1)
        (cond
          ((= bbb 0)
