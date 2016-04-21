@@ -60,20 +60,38 @@
     ;CPU internal memory
     ((< addr #x1FFF)
      (aref
-      (cpu-memory)
+      (cpu-memory c)
       (mod
        addr
        (array-dimension (cpu-memory c) 0))))
     ;PPU
-    ((< addr #x3FFF) 0)
+    ((<= addr #x3FFF) 0)
     ;APU and IO Registers
-    ((< addr #x401F) 0)
+    ((<= addr #x401F) 0)
     ;Mapper Registers
-    ((< addr #x5FFF) 0)
+    ((<= addr #x5FFF) 0)
     ;PRG RAM
-    ((< addr #x7FFF) 0)
+    ((<= addr #x7FFF) 0)
     ;PRG ROM
-    ((< addr #xFFFF) 0)))
+    ((<= addr #xFFFF) 0)))
+
+(defun write-cpu (c addr val)
+  (cond
+    ;CPU internal memory
+    ((<= addr #x1FFF)
+     (setf
+      (aref
+       (cpu-memory c)
+       (mod
+        addr
+        (array-dimension (cpu-memory c) 0)))
+      val))
+    ;PPU Registers
+    ((<= addr #x3FFF) 0)
+    ;PRG RAM
+    ((and (<= addr #x7FFF) (>= addr #x6000)) 0)
+    ;Base case
+    (T (print "We can't write here..."))))
 
 (defun reset (c)
   "Reset state of cpu"
@@ -242,7 +260,7 @@
   "Get the value from an instruction"
   (if (equal :immediate (instruction-addressing-mode inst))
     (instruction-lo-byte inst)
-    (read-cpu c (get-addr c inst))))
+    (read-cpu c (get-address c inst))))
 
 (defun fetch (c)
   "Fetch the next instruction from memory"
@@ -259,6 +277,6 @@
   (declare (ignore c inst))
   0)
 
-(defun step (c)
+(defun step-cpu (c)
   "Steps the cpu through an instruction, returns the number of cycles it took."
   (execute c (decode (fetch c))))
