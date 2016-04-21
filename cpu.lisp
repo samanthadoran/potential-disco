@@ -142,6 +142,7 @@
      nil)))
 
 (defun get-address (c inst)
+  "Get the address the instruction is talking about"
   (let ((mode (instruction-addressing-mode inst)))
     (cond
       ;Somewhere in zero page...
@@ -161,7 +162,8 @@
          (if (= (ldb (byte 1 7) (instruction-lo-byte inst)) 1)
            (*
             -1
-            (logand #x7f (instruction-lo-byte inst)))
+            (wrap-byte
+             (1+ (lognot (logand #x7f (instruction-lo-byte inst))))))
            (logand #x7f (instruction-lo-byte inst))))))
       ;Read the address contained at the supplied two byte address.
       ((equal mode :indirect)
@@ -217,6 +219,12 @@
           (instruction-lo-byte inst))
          (cpu-y c))))
       (T 1))))
+
+(defun get-value (c inst)
+  "Get the value from an instruction"
+  (if (equal :immediate (instruction-addressing-mode inst))
+    (instruction-lo-byte inst)
+    (read-cpu c (get-addr c inst))))
 
 (defun fetch (c)
   "Fetch the next instruction from memory"
