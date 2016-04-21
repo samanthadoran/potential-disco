@@ -9,8 +9,16 @@
 
 (in-package :6502-cpu)
 
-;(defstruct flags
-;  "Flag register")
+(defstruct flags
+  "Flag register"
+  (carry nil)
+  (zero nil)
+  (interrupt nil)
+  (bcd nil)
+  (soft-interrupt nil)
+  (unused T)
+  (overflow nil)
+  (negative nil))
 
 (defstruct cpu
   "A model 6502"
@@ -20,6 +28,7 @@
   (y 0 :type (unsigned-byte 8))
   (pc 0 :type (unsigned-byte 16))
   (sp 0 :type (unsigned-byte 8))
+  (sr (make-flags))
   (memory (make-array #x800 :element-type '(unsigned-byte 8))))
 
 (defstruct instruction
@@ -101,15 +110,20 @@
        ((equal mode :indirect-indexed) 2)
        (T 1)))))) ;Silence warnings with this last line
 
-;(defun set-zn (c val)
-;  ;If zero, set the bit
-;  (if (= val 0)
-;    1
-;    0)
-;  ;If the MSB is set, it's negative.
-;  (if (ldb (byte 1 7))
-;    1
-;    0))
+(defun set-zn (c val)
+  "Sets the zero or negative flag"
+  ;If zero, set the bit
+  (setf
+    (flags-zero (cpu-sr c))
+    (if (= val 0)
+      T
+      nil))
+  ;If the MSB is set, it's negative.
+  (setf
+    (flags-negative (cpu-sr c))
+    (if (ldb (byte 1 7))
+      T
+      nil)))
 
 (defun fetch (c)
   "Fetch the next instruction from memory"
