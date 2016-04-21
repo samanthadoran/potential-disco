@@ -53,9 +53,27 @@
     (logand a #xFF00)
     (logand b #xFF00))))
 
+;TODO: Give the CPU a console reference
 (defun read-cpu (c addr)
-  (declare (ignore c addr))
-  0)
+  "Reads the memory at the specified address"
+  (cond
+    ;CPU internal memory
+    ((< addr #x1FFF)
+     (aref
+      (cpu-memory)
+      (mod
+       addr
+       (array-dimension (cpu-memory c) 0))))
+    ;PPU
+    ((< addr #x3FFF) 0)
+    ;APU and IO Registers
+    ((< addr #x401F) 0)
+    ;Mapper Registers
+    ((< addr #x5FFF) 0)
+    ;PRG RAM
+    ((< addr #x7FFF) 0)
+    ;PRG ROM
+    ((< addr #xFFFF) 0)))
 
 (defun reset (c)
   "Reset state of cpu"
