@@ -236,3 +236,11 @@
 (defun decode (opcode)
   "Decodes the opcode."
   opcode)
+
+(defun execute (c inst)
+  (declare (ignore c inst))
+  0)
+
+(defun step (c)
+  "Steps the cpu through an instruction, returns the number of cycles it took."
+  (execute c (decode (fetch c))))
