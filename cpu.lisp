@@ -428,7 +428,73 @@
            :hi-byte hi-byte
            :lo-byte lo-byte))
          (T (print "BAD OP! Got to default case in cc=1"))))
-      ((= cc 2) 0)
+      ((= cc 2)
+       ;Yet more special case ops
+       (if (member opcode '(#x8A #x9A #xAA #xBA #xCA #xEA))
+         (make-instruction
+          :addressing-mode :implicit
+          :opcode opcode
+          :unmasked-opcode opcode
+          :hi-byte hi-byte
+          :lo-byte lo-byte)
+         (cond
+           ((= bbb 0)
+           (make-instruction
+            :addressing-mode :immediate
+            :opcode masked-opcode
+            :unmasked-opcode opcode
+            :hi-byte hi-byte
+            :lo-byte lo-byte))
+           ((= bbb 1)
+           (make-instruction
+            :addressing-mode :zero-page
+            :opcode masked-opcode
+            :unmasked-opcode opcode
+            :hi-byte hi-byte
+            :lo-byte lo-byte))
+           ((= bbb 2)
+           (make-instruction
+            :addressing-mode :accumulator
+            :opcode masked-opcode
+            :unmasked-opcode opcode
+            :hi-byte hi-byte
+            :lo-byte lo-byte))
+           ((= bbb 3)
+           (make-instruction
+            :addressing-mode :absolute
+            :opcode masked-opcode
+            :unmasked-opcode opcode
+            :hi-byte hi-byte
+            :lo-byte lo-byte))
+           ((= bbb 5)
+            (if (member aaa '(4 5))
+              (make-instruction
+               :addressing-mode :zero-page-indexed-y
+               :opcode masked-opcode
+               :unmasked-opcode opcode
+               :hi-byte hi-byte
+               :lo-byte lo-byte)
+              (make-instruction
+               :addressing-mode :zero-page-indexed-x
+               :opcode masked-opcode
+               :unmasked-opcode opcode
+               :hi-byte hi-byte
+               :lo-byte lo-byte)))
+           ((= bbb 7)
+            (if (= aaa 5)
+              (make-instruction
+               :addressing-mode :absolute-indexed-y
+               :opcode masked-opcode
+               :unmasked-opcode opcode
+               :hi-byte hi-byte
+               :lo-byte lo-byte)
+              (make-instruction
+               :addressing-mode :absolute-indexed-x
+               :opcode masked-opcode
+               :unmasked-opcode opcode
+               :hi-byte hi-byte
+               :lo-byte lo-byte)))
+           (T (print "BAD OP! Got to default case in cc=2")))))
       (T (print "This shouldn't happen. BAD OP!")))))
 
 (defun execute (c inst)
