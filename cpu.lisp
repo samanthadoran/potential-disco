@@ -101,23 +101,22 @@
        ((equal mode :indirect-indexed) 2)
        (T 1)))))) ;Silence warnings with this last line
 
+;(defun set-zn (c val)
+;  ;If zero, set the bit
+;  (if (= val 0)
+;    1
+;    0)
+;  ;If the MSB is set, it's negative.
+;  (if (ldb (byte 1 7))
+;    1
+;    0))
+
 (defun fetch (c)
   "Fetch the next instruction from memory"
-  (let ((inst (make-instruction)))
-    (setf
-     (instruction-unmasked-opcode inst)
-     (aref (cpu-memory c) (cpu-pc c)))
-    (setf
-     (instruction-lo-byte inst)
-     (aref
-      (cpu-memory c)
-      (wrap-word (+ (cpu-pc c) 1))))
-    (setf
-     (instruction-hi-byte inst)
-     (aref
-      (cpu-memory c)
-      (wrap-word (+ (cpu-pc c) 2))))
-    inst))
+  (make-instruction
+    :unmasked-opcode (aref (cpu-memory c) (cpu-pc c))
+    :lo-byte (aref (cpu-memory c) (wrap-word (+ (cpu-pc c) 1)))
+    :hi-byte (aref (cpu-memory c) (wrap-word (+ (cpu-pc c) 2)))))
 
 (defun decode (opcode)
   "Decodes the opcode."
