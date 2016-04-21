@@ -144,22 +144,26 @@
 (defun get-address (c inst)
   (let ((mode (instruction-addressing-mode inst)))
     (cond
+      ;Somewhere in zero page...
       ((equal mode :zero-page)
        (instruction-lo-byte inst))
+      ;Super simple, just make a two byte address from the supplied two bytes
       ((equal mode :absolute)
        (wrap-word
         (logior
          (ash (instruction-hi-byte inst) 8)
          (instruction-lo-byte inst))))
+      ;Treat the low byte as though it were signed, use it as an offset for PC
       ((equal mode :relative)
        (wrap-word
         (+
          (cpu-pc c)
-         (if (= (ldb (byte 7 1) (instruction-lo-byte inst)) 1)
+         (if (= (ldb (byte 1 7) (instruction-lo-byte inst)) 1)
            (*
             -1
             (logand #x7f (instruction-lo-byte inst)))
            (logand #x7f (instruction-lo-byte inst))))))
+      ;Read the address contained at the supplied two byte address.
       ((equal mode :indirect)
        (let ((ptr-addr
               (wrap-word
@@ -174,10 +178,13 @@
              (wrap-word (1+ ptr-addr)))
             8)
            (read-cpu c ptr-addr)))))
+      ;Add the x register to the low-byte for zero-page addressing
       ((equal mode :zero-page-indexed-x)
        (wrap-byte (+ (instruction-lo-byte inst) (cpu-x c))))
+      ;Add the y register to the low-byte for zero-page addressing
       ((equal mode :zero-page-indexed-y)
        (wrap-byte (+ (instruction-lo-byte inst) (cpu-y c))))
+      ;Add the x register to the supplied two byte address
       ((equal mode :absolute-indexed-x)
        (wrap-word
         (+
@@ -185,6 +192,7 @@
           (ash (instruction-hi-byte inst) 8)
           (instruction-lo-byte inst))
          (cpu-x c))))
+      ;Add the y register to the supplied two byte address
       ((equal mode :absolute-indexed-y)
        (wrap-word
         (+
@@ -192,6 +200,7 @@
           (ash (instruction-hi-byte inst) 8)
           (instruction-lo-byte inst))
          (cpu-y c))))
+      ;Get the address contained at lo-byte + x
       ((equal mode :indexed-indirect)
        (read-cpu
         c
@@ -199,6 +208,7 @@
          (+
           (instruction-lo-byte inst)
           (cpu-x c)))))
+      ;Get the address containted at lo-byte + y
       ((equal mode :indirect-indexed)
        (wrap-byte
         (+
