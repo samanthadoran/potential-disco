@@ -50,7 +50,7 @@
   (wrap-word
    (logior
     (ash hi 8)
-    (lo))))
+    lo)))
 
 (defun pages-differ (a b)
   (declare ((unsigned-byte 16) a b))
@@ -210,7 +210,7 @@
       ((equal mode :indirect)
        (let ((ptr-addr (make-word-from-bytes hi-byte lo-byte)))
          (make-word-from-bytes
-          (read-cpu c (wrap-word (+1 ptr-addr)))
+          (read-cpu c (wrap-word (1+ ptr-addr)))
           (read-cpu c ptr-addr))))
       ;Add the x register to the low-byte for zero-page addressing
       ((equal mode :zero-page-indexed-x)
