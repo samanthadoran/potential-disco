@@ -6,7 +6,7 @@
   (:export #:make-cpu #:pages-differ #:reset #:power-on #:pull-stack
            #:push-stack #:pull16 #:push16 #:cpu-cycles #:cpu-accumulator #:cpu-x
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
-           #:wrap-byte))
+           #:wrap-byte #:step-cpu #:decode #:execute #:fetch #:make-instruction))
 
 (in-package :6502-cpu)
 
@@ -45,6 +45,12 @@
 
 (defun wrap-word (val)
   (logand #xFFFF val))
+
+(defun make-word-from-bytes (hi lo)
+  (wrap-word
+   (logior
+    (ash hi 8)
+    (lo))))
 
 (defun pages-differ (a b)
   (declare ((unsigned-byte 16) a b))
@@ -139,28 +145,29 @@
   (push-stack c (wrap-byte (ash val -8)))
   (push-stack c (wrap-byte val)))
 
-(defun step-pc (c mode)
+(defun step-pc (c inst)
   "Step the pc according to the addressing mode."
-  (setf
-   (cpu-pc c)
-   (wrap-word
-    (+
+  (let ((mode (instruction-addressing-mode inst)))
+    (setf
      (cpu-pc c)
-     (cond
-       ((equal mode :implicit) 1)
-       ((equal mode :accumulator) 1)
-       ((equal mode :immediate) 2)
-       ((equal mode :zero-page) 2)
-       ((equal mode :absolute) 3)
-       ((equal mode :relative) 2)
-       ((equal mode :indirect) 3)
-       ((equal mode :zero-page-indexed-x) 2)
-       ((equal mode :zero-page-indexed-y) 2)
-       ((equal mode :absolute-indexed-x) 3)
-       ((equal mode :absolute-indexed-y) 3)
-       ((equal mode :indexed-indirect) 2)
-       ((equal mode :indirect-indexed) 2)
-       (T 1)))))) ;Silence warnings with this last line
+     (wrap-word
+      (+
+       (cpu-pc c)
+       (cond
+         ((equal mode :implicit) 1)
+         ((equal mode :accumulator) 1)
+         ((equal mode :immediate) 2)
+         ((equal mode :zero-page) 2)
+         ((equal mode :absolute) 3)
+         ((equal mode :relative) 2)
+         ((equal mode :indirect) 3)
+         ((equal mode :zero-page-indexed-x) 2)
+         ((equal mode :zero-page-indexed-y) 2)
+         ((equal mode :absolute-indexed-x) 3)
+         ((equal mode :absolute-indexed-y) 3)
+         ((equal mode :indexed-indirect) 2)
+         ((equal mode :indirect-indexed) 2)
+         (T 1))))))) ;Silence warnings with this last line
 
 (defun set-zn (c val)
   "Sets the zero or negative flag"
@@ -179,80 +186,61 @@
 
 (defun get-address (c inst)
   "Get the address the instruction is talking about"
-  (let ((mode (instruction-addressing-mode inst)))
+  (let ((mode (instruction-addressing-mode inst))
+        (lo-byte (instruction-lo-byte inst))
+        (hi-byte (instruction-hi-byte inst)))
     (cond
       ;Somewhere in zero page...
-      ((equal mode :zero-page)
-       (instruction-lo-byte inst))
+      ((equal mode :zero-page) lo-byte)
       ;Super simple, just make a two byte address from the supplied two bytes
       ((equal mode :absolute)
-       (wrap-word
-        (logior
-         (ash (instruction-hi-byte inst) 8)
-         (instruction-lo-byte inst))))
+       (make-word-from-bytes hi-byte lo-byte))
       ;Treat the low byte as though it were signed, use it as an offset for PC
       ((equal mode :relative)
        (wrap-word
         (+
          (cpu-pc c)
-         (if (= (ldb (byte 1 7) (instruction-lo-byte inst)) 1)
+         (if (= (ldb (byte 1 7) lo-byte) 1)
            (*
             -1
             (wrap-byte
-             (1+ (lognot (logand #x7f (instruction-lo-byte inst))))))
-           (logand #x7f (instruction-lo-byte inst))))))
+             (1+ (lognot (logand #x7f lo-byte)))))
+           (logand #x7f lo-byte)))))
       ;Read the address contained at the supplied two byte address.
       ((equal mode :indirect)
-       (let ((ptr-addr
-              (wrap-word
-               (logior
-                (ash (instruction-lo-byte inst) 8)
-                (instruction-hi-byte inst)))))
-         (wrap-word
-          (logior
-           (ash
-            (read-cpu
-             c
-             (wrap-word (1+ ptr-addr)))
-            8)
-           (read-cpu c ptr-addr)))))
+       (let ((ptr-addr (make-word-from-bytes hi-byte lo-byte)))
+         (make-word-from-bytes
+          (read-cpu c (wrap-word (+1 ptr-addr)))
+          (read-cpu c ptr-addr))))
       ;Add the x register to the low-byte for zero-page addressing
       ((equal mode :zero-page-indexed-x)
-       (wrap-byte (+ (instruction-lo-byte inst) (cpu-x c))))
+       (wrap-byte (+ lo-byte (cpu-x c))))
       ;Add the y register to the low-byte for zero-page addressing
       ((equal mode :zero-page-indexed-y)
-       (wrap-byte (+ (instruction-lo-byte inst) (cpu-y c))))
+       (wrap-byte (+ lo-byte (cpu-y c))))
       ;Add the x register to the supplied two byte address
       ((equal mode :absolute-indexed-x)
        (wrap-word
         (+
-         (logior
-          (ash (instruction-hi-byte inst) 8)
-          (instruction-lo-byte inst))
+         (make-word-from-bytes hi-byte lo-byte)
          (cpu-x c))))
       ;Add the y register to the supplied two byte address
       ((equal mode :absolute-indexed-y)
        (wrap-word
         (+
-         (logior
-          (ash (instruction-hi-byte inst) 8)
-          (instruction-lo-byte inst))
+         (make-word-from-bytes hi-byte lo-byte)
          (cpu-y c))))
       ;Get the address contained at lo-byte + x
       ((equal mode :indexed-indirect)
        (read-cpu
         c
         (wrap-byte
-         (+
-          (instruction-lo-byte inst)
-          (cpu-x c)))))
+         (+ lo-byte (cpu-x c)))))
       ;Get the address containted at lo-byte + y
       ((equal mode :indirect-indexed)
        (wrap-byte
         (+
-         (read-cpu
-          c
-          (instruction-lo-byte inst))
+         (read-cpu c lo-byte)
          (cpu-y c))))
       (T 1))))
 
@@ -269,17 +257,19 @@
    :lo-byte (aref (cpu-memory c) (wrap-word (+ (cpu-pc c) 1)))
    :hi-byte (aref (cpu-memory c) (wrap-word (+ (cpu-pc c) 2)))))
 
-
+;TODO: Test this somehow...
 (defun decode (inst)
-  "Decodes the opcode."
-  (let
+  "Decodes the opcode and returns a constructed instruction."
+  (let*
     ((opcode (instruction-unmasked-opcode inst))
      (lo-byte (instruction-lo-byte inst))
      (hi-byte (instruction-hi-byte inst))
-     (cc (logand (instruction-unmasked-opcode inst) #x03))
-     (bbb (logand (ash (instruction-unmasked-opcode inst) -2) #x07))
-     (aaa (logand (ash (instruction-unmasked-opcode inst) -5) #x07))
-     (masked-opcode (logand (instruction-unmasked-opcode inst) #xE3)))
+     (cc (logand opcode #x03))
+     (bbb (logand (ash opcode -2) #x07))
+     (aaa (logand (ash opcode -5) #x07))
+     ;We really only care about the opcode as: AAA???CC
+     ;BBB is normally just addressing mode, which we store in the intstruction
+     (masked-opcode (logand opcode #xE3)))
     (cond
       ((= cc 0)
        (cond
@@ -291,7 +281,7 @@
            :unmasked-opcode opcode
            :hi-byte hi-byte
            :lo-byte lo-byte))
-         ;BRK, RTI, RTS> interrupt and subroutines
+         ;BRK, RTI, RTS, interrupt and subroutines
          ((member opcode '(#x0 #x40 #x60))
           (make-instruction
            :addressing-mode :implicit
@@ -503,4 +493,7 @@
 
 (defun step-cpu (c)
   "Steps the cpu through an instruction, returns the number of cycles it took."
-  (execute c (decode (fetch c))))
+  (let ((inst (decode (fetch c))))
+    ;Remember to step the pc before execution.
+    (step-pc c inst)
+    (execute c inst)))
