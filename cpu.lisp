@@ -200,6 +200,7 @@
        (wrap-word
         (+
          (cpu-pc c)
+         ;Perform two's complement to figure out the offset
          (if (= (ldb (byte 1 7) lo-byte) 1)
            (*
             -1
@@ -487,9 +488,49 @@
            (T (print "BAD OP! Got to default case in cc=2")))))
       (T (print "This shouldn't happen. BAD OP!")))))
 
-(defun execute (c inst)
-  (declare (ignore c inst))
+(defun instruction-cycles (inst)
+  (declare (ignore inst))
   0)
+
+;TODO: Make an array for opcodes with page-cycles. INCOMPLETE AND WRONG!!!!
+(defun page-cycles (c inst)
+  "Returns how many cycles to add if a instruction crossed a page boundary"
+  (let ((address (get-address c inst))
+        (mode (instruction-addressing-mode inst)))
+    (cond
+      ((equal mode :absolute-indexed-x)
+       (if (pages-differ
+            address
+            (wrap-word (- address (cpu-x c))))
+         1
+         0))
+      ((equal mode :absolute-indexed-y)
+       (if (pages-differ
+            address
+            (wrap-word (- address (cpu-y c))))
+         1
+         0))
+      ((equal mode :indirect-indexed)
+       (if (pages-differ
+            address
+            (wrap-word
+             (+
+              (cpu-x c)
+              (make-word-from-bytes
+               (instruction-hi-byte inst)
+               (instruction-lo-byte inst)))))
+         1
+         0))
+      (T 0))))
+
+(defun execute (c inst)
+  (setf
+   (cpu-pc c)
+   (wrap-word
+    (+
+     (page-cycles c inst)
+     (instruction-cycles inst)
+     (cpu-pc c)))))
 
 (defun step-cpu (c)
   "Steps the cpu through an instruction, returns the number of cycles it took."
