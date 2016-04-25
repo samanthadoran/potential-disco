@@ -117,7 +117,10 @@
     :unused T
     :overflow nil
     :negative nil))
-  (setf (cpu-sp c) #xFD))
+  (setf (cpu-sp c) #xFD)
+  (setf
+   (cpu-pc c)
+   (make-word-from-bytes (read-cpu c #xFFFD) (read-cpu c #xFFFC))))
 
 (defun pull-stack (c)
   "Empty stack pull"
