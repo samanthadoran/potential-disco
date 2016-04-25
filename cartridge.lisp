@@ -39,12 +39,14 @@
   "A model NES cartridge"
   (prg-rom 0)
   (prg-rom-window 0 :type (unsigned-byte 8))
+  ;We ignore prg-ram for now
   (prg-ram 0)
   (prg-ram-window 0 :type (unsigned-byte 8))
   (chr-rom 0)
   (chr-ram 0)
   (chr-window 0 :type (unsigned-byte 8))
-  (mapper-number 0))
+  (mapper-number 0)
+  (header 0))
 
 (defun load-header (seq)
   (make-ines-header
@@ -67,10 +69,31 @@
               :element-type '(unsigned-byte 8))))
         (read-sequence seq stream)
         (setf header (load-header seq))
-        ;Skip trainers, god this is hacky
-        (if (= (logand (ash (ines-header-flags6 header) -2) 1) 1)
-          (read-sequence (make-array 512 :element-type '(unsigned-byte 8)) stream))
-        (princ "PRG Rom size: 0x")
-        (setq *print-base* 16)
-        (princ (* #x4000 (ines-header-size-of-prg-rom header)))))
-    cart))
+        (let*
+          ;If trainers are present, skip them.
+          ((to-add
+            (if (= (logand (ash (ines-header-flags6 header) -2) 1) 1)
+              512
+              0))
+           ;Limits of memory areas
+           (begin-prg (+ 16 to-add))
+           (end-prg (+ begin-prg (* #x4000 (ines-header-size-of-prg-rom header))))
+           (begin-chr end-prg)
+           (end-chr (+ begin-chr (* #x2000 (ines-header-size-of-chr-rom header)))))
+          ;Load in prg-rom
+          (setf
+           (cartridge-prg-rom cart)
+           (subseq
+            seq
+            begin-prg
+            end-prg))
+          ;If there is no rom, there is ram
+          (if (= (ines-header-size-of-chr-rom header) 0)
+            (setf
+             (cartridge-chr-ram cart)
+             (make-array #x2000 :element-type '(unsigned-byte 8)))
+            (setf
+             (cartridge-chr-rom cart)
+             (subseq seq begin-chr end-chr)))
+          (setf (cartridge-header cart) header)))
+    cart)))
