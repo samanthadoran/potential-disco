@@ -6,20 +6,9 @@
   (:export #:load-cartridge))
 
 (in-package :NES-cartridge)
-; type
-;   Cartridge* = ref CartridgeObj
-;   CartridgeObj = object
-;     prgROM*: seq[uint8]
-;     prgROMWindow*: uint8
-;     prgRAM*: seq[uint8]
-;     prgRAMWindow*: uint8
-;     chrROM*: seq[uint8]
-;     chrRAM*: seq[uint8]
-;     chrWindow*: uint8
-;     mapperNumber*: int
-; const PRGSize: uint32 = 0x4000u32
-; const CHRSize: uint32 = 0x2000u32
-;(make-array #x4000 :element-type '(unsigned-byte 8))
+(defconstant prg-size #x4000)
+(defconstant chr-size #x2000)
+
 (defstruct ines-header
   "ines header spec"
   (magic (make-array 4 :element-type '(unsigned-byte 8)))
@@ -77,9 +66,9 @@
               0))
            ;Limits of memory areas
            (begin-prg (+ 16 to-add))
-           (end-prg (+ begin-prg (* #x4000 (ines-header-size-of-prg-rom header))))
+           (end-prg (+ begin-prg (* prg-size (ines-header-size-of-prg-rom header))))
            (begin-chr end-prg)
-           (end-chr (+ begin-chr (* #x2000 (ines-header-size-of-chr-rom header)))))
+           (end-chr (+ begin-chr (* chr-size (ines-header-size-of-chr-rom header)))))
           ;Load in prg-rom
           (setf
            (cartridge-prg-rom cart)
@@ -91,7 +80,7 @@
           (if (= (ines-header-size-of-chr-rom header) 0)
             (setf
              (cartridge-chr-ram cart)
-             (make-array #x2000 :element-type '(unsigned-byte 8)))
+             (make-array chr-size :element-type '(unsigned-byte 8)))
             (setf
              (cartridge-chr-rom cart)
              (subseq seq begin-chr end-chr)))
