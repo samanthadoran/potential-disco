@@ -3,7 +3,8 @@
 (defpackage #:NES-cartridge
   (:nicknames #:nes-cart)
   (:use :cl :cl-user)
-  (:export #:load-cartridge))
+  (:export #:load-cartridge #:make-cartridge #:cartridge-prg-rom
+           #:cartridge-prg-ram #:cartridge-chr-rom #:cartridge-chr-ram))
 
 (in-package :NES-cartridge)
 (defconstant prg-size #x4000)

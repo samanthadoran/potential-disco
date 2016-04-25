@@ -6,7 +6,8 @@
   (:export #:make-cpu #:pages-differ #:reset #:power-on #:pull-stack
            #:push-stack #:pull16 #:push16 #:cpu-cycles #:cpu-accumulator #:cpu-x
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
-           #:wrap-byte #:step-cpu #:decode #:execute #:fetch #:make-instruction))
+           #:wrap-byte #:step-cpu #:decode #:execute #:fetch #:make-instruction
+           #:cpu-memory-get #:cpu-memory-set))
 
 (in-package :6502-cpu)
 
@@ -30,6 +31,8 @@
   (pc 0 :type (unsigned-byte 16))
   (sp 0 :type (unsigned-byte 8))
   (sr (make-flags))
+  (memory-get (make-array 6))
+  (memory-set (make-array 3))
   (memory (make-array #x800 :element-type '(unsigned-byte 8))))
 
 (defstruct instruction
@@ -64,22 +67,35 @@
   "Reads the memory at the specified address"
   (cond
     ;CPU internal memory
-    ((< addr #x1FFF)
-     (aref
-      (cpu-memory c)
-      (mod
-       addr
-       (array-dimension (cpu-memory c) 0))))
+    ((<= addr #x1FFF) (funcall (aref (cpu-memory-get c) 0) addr))
     ;PPU
-    ((<= addr #x3FFF) 0)
+    ((<= addr #x3FFF) (funcall (aref (cpu-memory-get c) 1) addr))
     ;APU and IO Registers
-    ((<= addr #x401F) 0)
+    ((<= addr #x401F) (funcall (aref (cpu-memory-get c) 2) addr))
     ;Mapper Registers
-    ((<= addr #x5FFF) 0)
+    ((<= addr #x5FFF) (funcall (aref (cpu-memory-get c) 3) addr))
     ;PRG RAM
-    ((<= addr #x7FFF) 0)
+    ((<= addr #x7FFF) (funcall (aref (cpu-memory-get c) 4) addr))
     ;PRG ROM
-    ((<= addr #xFFFF) 0)))
+    ((<= addr #xFFFF) (funcall (aref (cpu-memory-get c) 5) addr))))
+  ; (cond
+  ;   ;CPU internal memory
+  ;   ((<= addr #x1FFF)
+  ;    (aref
+  ;     (cpu-memory c)
+  ;     (mod
+  ;      addr
+  ;      (array-dimension (cpu-memory c) 0))))
+  ;   ;PPU
+  ;   ((<= addr #x3FFF) 0)
+  ;   ;APU and IO Registers
+  ;   ((<= addr #x401F) 0)
+  ;   ;Mapper Registers
+  ;   ((<= addr #x5FFF) 0)
+  ;   ;PRG RAM
+  ;   ((<= addr #x7FFF) 0)
+  ;   ;PRG ROM
+  ;   ((<= addr #xFFFF) 0)))
 
 (defun write-cpu (c addr val)
   (cond
@@ -120,7 +136,7 @@
   (setf (cpu-sp c) #xFD)
   (setf
    (cpu-pc c)
-   (make-word-from-bytes (read-cpu c #xFFFD) (read-cpu c #xFFFC))))
+   (wrap-word(make-word-from-bytes (read-cpu c #xFFFD) (read-cpu c #xFFFC)))))
 
 (defun pull-stack (c)
   "Empty stack pull"
@@ -257,9 +273,9 @@
 (defun fetch (c)
   "Fetch the next instruction from memory"
   (make-instruction
-   :unmasked-opcode (aref (cpu-memory c) (cpu-pc c))
-   :lo-byte (aref (cpu-memory c) (wrap-word (+ (cpu-pc c) 1)))
-   :hi-byte (aref (cpu-memory c) (wrap-word (+ (cpu-pc c) 2)))))
+   :unmasked-opcode (read-cpu c (cpu-pc c))
+   :lo-byte (read-cpu c (+ (cpu-pc c) 1))
+   :hi-byte (read-cpu c (+ (cpu-pc c) 2))))
 
 ;TODO: Test this somehow...
 (defun decode (inst)
