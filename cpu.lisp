@@ -33,7 +33,8 @@
   (sr (make-flags))
   (memory-get (make-array 6))
   (memory-set (make-array 3))
-  (memory (make-array #x800 :element-type '(unsigned-byte 8))))
+  (memory (make-array #x800 :element-type '(unsigned-byte 8)))
+  (interrupt :none))
 
 (defstruct instruction
   "6502 instruction"
