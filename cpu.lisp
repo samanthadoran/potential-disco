@@ -6,10 +6,54 @@
   (:export #:make-cpu #:pages-differ #:reset #:power-on #:pull-stack
            #:push-stack #:pull16 #:push16 #:cpu-cycles #:cpu-accumulator #:cpu-x
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
-           #:wrap-byte #:step-cpu #:decode #:execute #:fetch #:make-instruction
+           #:wrap-byte #:step-cpu #:decode #:execute #:make-instruction
            #:cpu-memory-get #:cpu-memory-set))
 
 (in-package :6502-cpu)
+
+(defvar
+  cycles-per-instruction
+  (make-array
+   256
+   :initial-contents
+   '(7 6 2 8 3 3 5 5 3 2 2 2 4 4 6 6
+     2 5 2 8 4 4 6 6 2 4 2 7 4 4 7 7
+     6 6 2 8 3 3 5 5 4 2 2 2 4 4 6 6
+     2 5 2 8 4 4 6 6 2 4 2 7 4 4 7 7
+     6 6 2 8 3 3 5 5 3 2 2 2 3 4 6 6
+     2 5 2 8 4 4 6 6 2 4 2 7 4 4 7 7
+     6 6 2 8 3 3 5 5 4 2 2 2 5 4 6 6
+     2 5 2 8 4 4 6 6 2 4 2 7 4 4 7 7
+     2 6 2 6 3 3 3 3 2 2 2 2 4 4 4 4
+     2 6 2 6 4 4 4 4 2 5 2 5 5 5 5 5
+     2 6 2 6 3 3 3 3 2 2 2 2 4 4 4 4
+     2 5 2 5 4 4 4 4 2 4 2 4 4 4 4 4
+     2 6 2 8 3 3 5 5 2 2 2 2 4 4 6 6
+     2 5 2 8 4 4 6 6 2 4 2 7 4 4 7 7
+     2 6 2 8 3 3 5 5 2 2 2 2 4 4 6 6
+     2 5 2 8 4 4 6 6 2 4 2 7 4 4 7 7)))
+
+(defvar
+  instruction-page-cycles
+  (make-array
+   256
+   :initial-contents
+   '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 1 0 1 0 0 0 0 0 1 0 1 1 1 1 1
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0
+     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+     1 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0)))
 
 (defstruct flags
   "Flag register"
@@ -79,42 +123,17 @@
     ((<= addr #x7FFF) (funcall (aref (cpu-memory-get c) 4) addr))
     ;PRG ROM
     ((<= addr #xFFFF) (funcall (aref (cpu-memory-get c) 5) addr))))
-  ; (cond
-  ;   ;CPU internal memory
-  ;   ((<= addr #x1FFF)
-  ;    (aref
-  ;     (cpu-memory c)
-  ;     (mod
-  ;      addr
-  ;      (array-dimension (cpu-memory c) 0))))
-  ;   ;PPU
-  ;   ((<= addr #x3FFF) 0)
-  ;   ;APU and IO Registers
-  ;   ((<= addr #x401F) 0)
-  ;   ;Mapper Registers
-  ;   ((<= addr #x5FFF) 0)
-  ;   ;PRG RAM
-  ;   ((<= addr #x7FFF) 0)
-  ;   ;PRG ROM
-  ;   ((<= addr #xFFFF) 0)))
 
 (defun write-cpu (c addr val)
   (cond
     ;CPU internal memory
-    ((<= addr #x1FFF)
-     (setf
-      (aref
-       (cpu-memory c)
-       (mod
-        addr
-        (array-dimension (cpu-memory c) 0)))
-      val))
+    ((<= addr #x1FFF) (funcall (aref (cpu-memory-set c) 0) addr val))
     ;PPU Registers
-    ((<= addr #x3FFF) 0)
+    ((<= addr #x3FFF) (funcall (aref (cpu-memory-set c) 1) addr val))
     ;PRG RAM
-    ((and (<= addr #x7FFF) (>= addr #x6000)) 0)
-    ;Base case
-    (T (print "We can't write here! =("))))
+    ((and (<= addr #x7FFF) (>= addr #x6000))
+     (funcall (aref (cpu-memory-set c) 2) addr val))
+    (T (format t "We really can't write to ~a" addr))))
 
 (defun reset (c)
   "Reset state of cpu"
@@ -508,49 +527,49 @@
            (T (print "BAD OP! Got to default case in cc=2")))))
       (T (print "This shouldn't happen. BAD OP!")))))
 
-(defun instruction-cycles (inst)
-  (declare (ignore inst))
-  0)
-
-;TODO: Make an array for opcodes with page-cycles. INCOMPLETE AND WRONG!!!!
-(defun page-cycles (c inst)
-  "Returns how many cycles to add if a instruction crossed a page boundary"
-  (let ((address (get-address c inst))
-        (mode (instruction-addressing-mode inst)))
-    (cond
-      ((equal mode :absolute-indexed-x)
-       (if (pages-differ
-            address
-            (wrap-word (- address (cpu-x c))))
-         1
-         0))
-      ((equal mode :absolute-indexed-y)
-       (if (pages-differ
-            address
-            (wrap-word (- address (cpu-y c))))
-         1
-         0))
-      ((equal mode :indirect-indexed)
-       (if (pages-differ
-            address
-            (wrap-word
-             (+
-              (cpu-x c)
-              (make-word-from-bytes
-               (instruction-hi-byte inst)
-               (instruction-lo-byte inst)))))
-         1
-         0))
-      (T 0))))
+(defun instruction-cycles (c inst)
+  (let* ((address (get-address c inst))
+        (mode (instruction-addressing-mode inst))
+        (unmasked (instruction-unmasked-opcode inst))
+        (page-cycles (aref instruction-page-cycles unmasked)))
+    (+
+     ;Get the number of cycles as per usual
+     (aref cycles-per-instruction unmasked)
+     ;Add page-cycles if we crossed a bound
+     (cond
+       ((equal mode :absolute-indexed-x)
+        (if (pages-differ
+             address
+             (wrap-word (- address (cpu-x c))))
+          page-cycles
+          0))
+       ((equal mode :absolute-indexed-y)
+        (if (pages-differ
+             address
+             (wrap-word (- address (cpu-y c))))
+          page-cycles
+          0))
+       ((equal mode :indirect-indexed)
+        (if (pages-differ
+             address
+             (wrap-word
+              (+
+               (cpu-x c)
+               (make-word-from-bytes
+                (instruction-hi-byte inst)
+                (instruction-lo-byte inst)))))
+          page-cycles
+          0))
+       ;Other modes do not suffer from this.
+       (T 0)))))
 
 (defun execute (c inst)
-  (setf
-   (cpu-pc c)
-   (wrap-word
-    (+
-     (page-cycles c inst)
-     (instruction-cycles inst)
-     (cpu-pc c)))))
+  (let ((cycles (instruction-cycles c inst)))
+    (setf
+     (cpu-pc c)
+     (wrap-word
+      (+ cycles (cpu-pc c))))
+    cycles))
 
 (defun step-cpu (c)
   "Steps the cpu through an instruction, returns the number of cycles it took."
