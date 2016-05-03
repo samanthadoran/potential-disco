@@ -11,8 +11,8 @@
     (set-zn c (cpu-accumulator c))
   (format
    nil
-   "ORA with mode ~a from address ~x that holds value ~x. Produces value ~x"
-   mode addr val (cpu-accumulator c))))
+   "ORA with mode ~a~@[ from 0x~x~] that holds value ~x. Produces value ~x"
+   mode (when (not (equal mode :immediate)) addr) val (cpu-accumulator c))))
 
 (defun anda (c inst)
   "ANDA: and value with accumulator"
@@ -25,8 +25,8 @@
     (set-zn c (cpu-accumulator c))
     (format
      nil
-     "ANDA with mode ~a from address ~x that holds value ~x. Produces value ~x"
-     mode addr val (cpu-accumulator c))))
+     "ANDA with mode ~a~@[ from 0x~x~] that holds value ~x. Produces value ~x"
+     mode (when (not (equal mode :immediate)) addr) val (cpu-accumulator c))))
 
 ; (defun bit (c inst)
 ;  "BIT: and value with accumulator, don't store."
@@ -49,8 +49,8 @@
      (>= (cpu-accumulator c) val))
     (format
      nil
-     "CMP with mode ~a from address ~x that holds value ~x"
-     mode addr val)))
+     "CMP with mode ~a~@[ from 0x~x~] that holds value ~x"
+     mode (when (not (equal mode :immediate)) addr) val)))
 
 (defun cpy (c inst)
  (let ((mode (instruction-addressing-mode inst))
@@ -62,8 +62,8 @@
     (>= (cpu-y c) val))
    (format
     nil
-    "CPY with mode ~a from address ~x that holds value ~x"
-    mode addr val)))
+    "CPY with mode ~a~@[ from 0x~x~] that holds value ~x"
+    mode (when (not (equal mode :immediate)) addr) val)))
 
 (defun cpx (c inst)
   (let ((mode (instruction-addressing-mode inst))
@@ -75,8 +75,8 @@
      (>= (cpu-x c) val))
     (format
      nil
-     "CPX with mode ~a from address ~x that holds value ~x"
-     mode addr val)))
+     "CPX with mode ~a~@[ from 0x~x~] that holds value ~x"
+     mode (when (not (equal mode :immediate)) addr) val)))
 
 (defun dey (c inst)
   "DEY: Decrement y register"
