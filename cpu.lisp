@@ -572,7 +572,7 @@
         (instruction (gethash (instruction-opcode inst) instructions)))
     (if (not (null instruction))
       (print (funcall instruction c inst))
-      (print instruction))
+      (print (format nil "Uknown opcode 0x~x" (instruction-opcode inst))))
     (incf (cpu-cycles c) cycles)
     cycles))
 
