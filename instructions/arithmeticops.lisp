@@ -1,3 +1,5 @@
+(in-package :6502-cpu)
+
 (defun ora (c inst)
   "ORA: or value with accumulator"
   (let ((mode (instruction-addressing-mode inst))

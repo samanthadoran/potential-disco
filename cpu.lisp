@@ -11,6 +11,8 @@
 
 (in-package :6502-cpu)
 
+(defvar instructions (make-hash-table :test 'equal))
+
 (defvar
   cycles-per-instruction
   (make-array
@@ -566,11 +568,12 @@
        (T 0)))))
 
 (defun execute (c inst)
-  (let ((cycles (instruction-cycles c inst)))
-    (setf
-     (cpu-pc c)
-     (wrap-word
-      (+ cycles (cpu-pc c))))
+  (let ((cycles (instruction-cycles c inst))
+        (instruction (gethash (instruction-opcode inst) instructions)))
+    (if (not (null instruction))
+      (print (funcall instruction c inst))
+      (print instruction))
+    (incf (cpu-cycles c) cycles)
     cycles))
 
 (defun step-cpu (c)
