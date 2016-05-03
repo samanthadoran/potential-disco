@@ -13,7 +13,15 @@
   (cart (NES-cartridge:make-cartridge))
   (ppu 0))
 
-(defun test (n)
+(defun cpu-to-cpu-read (n)
+  (lambda (addr)
+          (aref
+           (6502-cpu:cpu-memory (nes:nes-cpu n))
+           (mod
+            addr
+            (array-dimension (6502-cpu:cpu-memory (nes:nes-cpu n)) 0)))))
+
+(defun cpu-to-cart-read (n)
   (lambda (addr)
           (aref
            (NES-cartridge:cartridge-prg-rom (nes-cart n))
@@ -25,13 +33,8 @@
   (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/smb.nes"))
   (setf
    (aref (6502-cpu:cpu-memory-get (nes-cpu n)) 0)
-   (lambda (addr)
-           (aref
-               (6502-cpu:cpu-memory (nes-cpu n))
-               (mod
-                addr
-                 (array-dimension (6502-cpu:cpu-memory (nes-cpu n)) 0)))))
+   (cpu-to-cpu-read n))
   (setf
    (aref (6502-cpu:cpu-memory-get (nes-cpu n)) 5)
-   (test n))
+   (cpu-to-cart-read n))
   (6502-cpu:power-on (nes-cpu n)))
