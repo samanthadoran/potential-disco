@@ -81,7 +81,9 @@
 (defun dey (c inst)
   "DEY: Decrement y register"
   (declare (ignore inst))
-  (decf (cpu-y c))
+  (setf
+   (cpu-y c)
+   (wrap-byte (- (cpu-y c) 1)))
   (set-zn c (wrap-byte (cpu-y c)))
   (format
    nil
@@ -91,7 +93,9 @@
 (defun dex (c inst)
   "DEY: Decrement y register"
   (declare (ignore inst))
-  (decf (cpu-x c))
+  (setf
+   (cpu-x c)
+   (wrap-byte (- (cpu-x c) 1)))
   (set-zn c (wrap-byte (cpu-x c)))
   (format
    nil
