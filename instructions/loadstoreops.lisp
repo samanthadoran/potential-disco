@@ -41,3 +41,44 @@
     nil
     "LDX with mode ~a~@[ from 0x~x~] loaded value 0x~x into cpu-x"
     mode (when (not (equal mode :immediate)) addr) val)))
+
+(defun sty (c inst)
+  (let ((addr (get-address c inst)))
+    (write-cpu c addr (cpu-y c))
+    (format
+     nil
+     "STY stored 0x~x at 0x~x" (cpu-y c) addr)))
+
+(defun sta (c inst)
+ (let ((addr (get-address c inst)))
+   (write-cpu c addr (cpu-accumulator c))
+   (format
+    nil
+    "STA stored 0x~x at 0x~x" (cpu-accumulator c) addr)))
+
+(defun stx (c inst)
+  (let ((addr (get-address c inst)))
+    (write-cpu c addr (cpu-x c))
+    (format
+     nil
+     "STX stored 0x~x at 0x~x" (cpu-x c) addr)))
+
+(defun txa (c inst)
+  "TXA. Transfer x to accumulator"
+  (declare (ignore inst))
+  (setf
+   (cpu-accumulator c)
+   (cpu-x c))
+  (format
+   nil
+   "TXA changed accumulator to 0x~x" (cpu-accumulator c)))
+
+(defun txs (c inst)
+  "TXS. Transfer x to stack"
+  (declare (ignore inst))
+  (setf
+   (cpu-sp c)
+   (cpu-x c))
+  (format
+   nil
+   "TXS changed cpu-sp to 0x~x" (cpu-sp c)))
