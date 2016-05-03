@@ -128,8 +128,10 @@
     ;PRG ROM
     ((<= addr #xFFFF) (funcall (aref (cpu-memory-get c) 5) addr))))
 
+;TODO: Write functions for this
 (defun write-cpu (c addr val)
   (cond
+    (T (format t "We haven't implemented writing to memory yet"))
     ;CPU internal memory
     ((<= addr #x1FFF) (funcall (aref (cpu-memory-set c) 0) addr val))
     ;PPU Registers
@@ -572,7 +574,7 @@
         (instruction (gethash (instruction-opcode inst) instructions)))
     (if (not (null instruction))
       (print (funcall instruction c inst))
-      (print (format nil "Uknown opcode 0x~x" (instruction-opcode inst))))
+      (print (format nil "Uknown opcode 0x~x" (instruction-unmasked-opcode inst))))
     (incf (cpu-cycles c) cycles)
     cycles))
 
