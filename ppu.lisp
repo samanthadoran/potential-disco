@@ -22,14 +22,14 @@
 
 (defstruct color
   "Simple RGBA"
-  (r 0 :type (unsiged-byte 8))
-  (g 0 :type (unsiged-byte 8))
-  (b 0 :type (unsiged-byte 8)))
+  (r 0 :type (unsigned-byte 8))
+  (g 0 :type (unsigned-byte 8))
+  (b 0 :type (unsigned-byte 8)))
 
 (defstruct ppu
   "A model picture processing unit"
-  (front (make-array '(240 256) :element-type 'color))
-  (back (make-array '(240 256) :element-type 'color))
+  (front (make-array '(240 256) :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0)))
+  (back (make-array '(240 256) :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0)))
 
   (nmi-callback 0)
 
@@ -40,8 +40,6 @@
   (palette-data (make-array 32 :element-type '(unsigned-byte 8)))
   (name-table-data (make-array 2048 :element-type '(unsigned-byte 8)))
   (oam-data (make-array 256 :element-type '(unsigned-byte 8)))
-  (front 0)
-  (back 0)
 
   ;Registers
   (v 0 :type (unsigned-byte 15)) ;Current vram address
@@ -52,7 +50,7 @@
   (register 0 :type (unsigned-byte 8))
 
   ;NMI Status
-  (nmi-occured nil)
+  (nmi-occurred nil)
   (nmi-output nil)
   (nmi-previous nil)
   (nmi-delay 0)
@@ -73,50 +71,59 @@
 
   ;$2000 PPU Control
   (flag-name-table 0 :type (unsigned-byte 2))
-  (flag-increment nil)
-  (flag-sprite-table nil)
-  (flag-background-table nil)
+  (flag-increment 0 :type (unsigned-byte 1))
+  (flag-sprite-table 0 :type (unsigned-byte 1))
+  (flag-background-table 0 :type (unsigned-byte 1))
+  (flag-sprite-size 0 :type (unsigned-byte 1))
+  (flag-master-slave 0 :type (unsigned-byte 1))
 
   ;$2001 PPU Mask
-  (flag-grayscale nil)
-  (flag-show-left-background nil)
-  (flag-show-left-sprites nil)
-  (flag-show-background nil)
-  (flag-show-sprites nil)
-  (flag-red-tint nil)
-  (flag-green-tint nil)
-  (flag-blue-tint nil)
+  (flag-grayscale 0 :type (unsigned-byte 1))
+  (flag-show-left-background 0 :type (unsigned-byte 1))
+  (flag-show-left-sprites 0 :type (unsigned-byte 1))
+  (flag-show-background 0 :type (unsigned-byte 1))
+  (flag-show-sprites 0 :type (unsigned-byte 1))
+  (flag-red-tint 0 :type (unsigned-byte 1))
+  (flag-green-tint 0 :type (unsigned-byte 1))
+  (flag-blue-tint 0 :type (unsigned-byte 1))
 
   ;$2002 PPU Status
-  (flag-sprite-zero-hit nil)
-  (flag-sprite-overflow nil)
+  (flag-sprite-zero-hit 0 :type (unsigned-byte 8))
+  (flag-sprite-overflow 0 :type (unsigned-byte 8))
 
   ;$2003 OAM Address
-  (oam-address 0 :type '(unsigned-byte 8))
+  (oam-address 0 :type (unsigned-byte 8))
 
   ;Buffer for $2007 Data Read
-  (buffered-data 0 :type '(unsigned-byte 8)))
+  (buffered-data 0 :type (unsigned-byte 8)))
 
-;TODO: Implement
+(defun wrap-byte (val)
+  (logand #xFF val))
+
+(defun wrap-word (val)
+  (logand #xFFFF val))
+
+(defun nmi-change (p)
+  (let ((nmi (and (ppu-nmi-output p) (ppu-nmi-occurred p))))
+    (when (and nmi (ppu-nmi-previous p))
+      (setf (ppu-nmi-delay p) 15))
+    (setf (ppu-nmi-previous p) nmi)))
+
 (defun read-palette (p address)
-  (declare (ignore p address))
-  0)
+  (aref
+   (ppu-palette-data p)
+   (if (and (>= address 16) (= (mod address 4) 0))
+     (wrap-word (- address 16))
+     address)))
 
-;TODO: Implement
 (defun write-palette (p address value)
-  (declare (ignore p address value))
-  0)
-
-(defun read-register (p selector)
-  (cond
-    ;Read ppu status
-    ((= selector 2) 0)
-    ;Read OAM Data
-    ((= selector 4) 0)
-    ;Read Data
-    ((= selector 7) 0)
-    ;Default case
-    (T 0)))
+  (setf
+   (aref
+    (ppu-palette-data p)
+    (if (and (>= address 16) (= (mod address 4) 0))
+      (wrap-word (- address 16))
+      address))
+   value))
 
 (defun write-control (p value)
   (setf
@@ -142,18 +149,207 @@
    (= (logand (ash value -7) 1) 1))
   (nmi-change p)
   (setf
-   (ppu-t p)
+   (ppu-tv p)
    ;Keep it in 15 bits
    (logand
     #x7FFF
     (logior
-     (logand (ppu-t p) #xF3FF)
+     (logand (ppu-tv p) #xF3FF)
      (ash (logand value 3) -10)))))
+
+(defun write-mask (p value)
+  (setf
+   (ppu-flag-grayscale p)
+   (logand (ash value 0) 1))
+  (setf
+   (ppu-flag-show-left-background p)
+   (logand (ash value -1) 1))
+  (setf
+   (ppu-flag-show-left-sprites p)
+   (logand (ash value -2) 1))
+  (setf
+   (ppu-flag-show-background p)
+   (logand (ash value -3) 1))
+  (setf
+   (ppu-flag-show-sprites p)
+   (logand (ash value -4) 1))
+  (setf
+   (ppu-flag-red-tint p)
+   (logand (ash value -5) 1))
+  (setf
+   (ppu-flag-green-tint p)
+   (logand (ash value -6) 1))
+  (setf
+   (ppu-flag-blue-tint p)
+   (logand (ash value -7) 1)))
+
+(defun read-status (p)
+  (setf
+   (ppu-w p)
+   0)
+  (let ((result (logand (ppu-register p) #x1F)))
+    (setf
+     result
+     (logior
+      (logior
+       result
+       (wrap-byte (ash (ppu-flag-sprite-overflow p) -5)))
+      (wrap-byte (ash (ppu-flag-sprite-zero-hit p) -6))))
+    (setf
+     result
+     (if (ppu-nmi-occurred p)
+       (logior
+        result
+        (wrap-byte (ash 1 -7)))
+       result))
+    (setf
+     (ppu-nmi-occurred p)
+     nil)
+    (nmi-change p)
+    result))
+
+
+(defun write-oam-address (p value)
+  (setf
+   (ppu-oam-address p)
+   value))
+
+(defun read-oam-data (p)
+  (aref
+   (ppu-oam-data p)
+   (ppu-oam-address p)))
+
+(defun write-oam-data (p value)
+  (setf
+   (aref
+    (ppu-oam-data p)
+    (ppu-oam-address p))
+   value)
+  (setf
+   (ppu-oam-address p)
+   (wrap-byte (1+ (ppu-oam-address p)))))
+
+(defun write-scroll (p value)
+  (if (= (ppu-w p) 0)
+    (progn
+     (setf
+      (ppu-tv p)
+      (logior
+       (logand
+        (ppu-tv p)
+        #xFFE0)
+       (ash value -3)))
+     (setf
+      (ppu-x p)
+      (logand value #x07))
+     (setf
+      (ppu-w p)
+      1))
+    (progn
+     (setf
+      (ppu-tv p)
+      (logior
+       (logand
+        (ppu-tv p)
+        #x8FFF)
+       (ash (logand value #x07) 12)))
+     (setf
+      (ppu-tv p)
+      (logior
+       (logand (ppu-tv p) #xFC1F)
+       (ash (logand value #xF8) 2)))
+     (setf
+      (ppu-w p)
+      0))))
+
+(defun write-address (p value)
+  (if (= (ppu-w p) 0)
+    (progn
+     (setf
+      (ppu-tv p)
+      (logior
+       (logand (ppu-tv p) #x80FF)
+       (ash (logand value #x3F) 8)))
+     (setf (ppu-w p) 1))
+    (progn
+     (setf
+      (ppu-tv p)
+      (logior
+       (logand (ppu-tv p) #xFF00)
+       value))
+     (setf (ppu-tv p) (ppu-tv p))
+     (setf (ppu-w p) 0))))
+
+
+(defun read-data (p)
+  (let ((value (read-ppu p (ppu-v p))))
+    (if (< (mod (ppu-v p) #x4000) #x3F00)
+      (progn
+       (let ((buffered (ppu-buffered-data p)))
+         (setf
+          (ppu-buffered-data p)
+          value)
+         (setf
+          value
+          buffered)))
+      (setf
+       (ppu-buffered-data p)
+       (read-ppu p (- (ppu-v p) #x1000))))
+    (setf
+     (ppu-v p)
+     (wrap-word
+      (+
+       (ppu-v p)
+       (if (= (ppu-flag-increment p) 0)
+         1
+         32))))
+    value))
+
+
+(defun write-data (p value)
+  (write-ppu p (ppu-v p) value)
+  (setf
+   (ppu-v p)
+   (wrap-word
+    (+
+     (ppu-v p)
+     (if (= (ppu-flag-increment p) 0)
+       1
+       32)))))
+
+;TODO: Implement
+(defun write-dma (p value)
+  (declare (ignore p value)))
+; // $4014: OAMDMA
+; func (ppu *PPU) writeDMA(value byte) {
+; 	cpu := ppu.console.CPU
+; 	address := uint16(value) << 8
+; 	for i := 0; i < 256; i++ {
+; 		ppu.oamData[ppu.oamAddress] = cpu.Read(address)
+; 		ppu.oamAddress++
+; 		address++
+; 	}
+; 	cpu.stall += 513
+; 	if cpu.Cycles%2 == 1 {
+; 		cpu.stall++
+; 	}
+; }
+
+(defun read-register (p selector)
+  (cond
+    ;Read ppu status
+    ((= selector 2) (read-status p))
+    ;Read OAM Data
+    ((= selector 4) (read-oam-data p))
+    ;Read Data
+    ((= selector 7) (read-data p))
+    ;Default case
+    (T 0)))
 
 (defun write-register (p selector value)
   (setf
    (ppu-register p)
-   (value))
+   value)
   (cond
     ;Write Control
     ((= selector 0) (write-control p value))
@@ -171,4 +367,18 @@
     ((= selector 7) (write-data p value))
     ;Write DMA
     ((= selector #x14) (write-dma p value))
-    ((T (format t "We really can't write to register 0x~x" selector)))))
+    (T (format t "We really can't write to register 0x~x" selector))))
+
+(defun reset (p)
+  (setf
+   (ppu-cycle p)
+   340)
+  (setf
+   (ppu-scanline p)
+   240)
+  (setf
+   (ppu-frame p)
+   0)
+  (write-control p 0)
+  (write-mask p 0)
+  (write-oam-address p 0))
