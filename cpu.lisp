@@ -139,7 +139,6 @@
 ;TODO: Write functions for this
 (defun write-cpu (c addr val)
   (cond
-    (T (format t "We haven't implemented writing to memory yet"))
     ;CPU internal memory
     ((<= addr #x1FFF) (funcall (aref (cpu-memory-set c) 0) addr val))
     ;PPU Registers
@@ -577,7 +576,7 @@
         (instruction (gethash (instruction-opcode inst) instructions)))
     (if (not (null instruction))
       (print (funcall instruction c inst))
-      (print (format nil "Uknown opcode 0x~x" (instruction-unmasked-opcode inst))))
+      (print (format nil "Uknown instruction... ~a" inst)))
     (incf (cpu-cycles c) cycles)
     cycles))
 
