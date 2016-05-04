@@ -7,7 +7,7 @@
            #:push-stack #:pull16 #:push16 #:cpu-cycles #:cpu-accumulator #:cpu-x
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
            #:wrap-byte #:step-cpu #:decode #:execute #:make-instruction
-           #:cpu-memory-get #:cpu-memory-set #:ora))
+           #:cpu-memory-get #:cpu-memory-set #:ora #:to-signed-byte-8))
 
 (in-package :6502-cpu)
 
@@ -97,6 +97,14 @@
 
 (defun wrap-word (val)
   (logand #xFFFF val))
+
+(defun to-signed-byte-8 (val)
+  (if (= (ldb (byte 1 7) val) 1)
+    (*
+     -1
+     (wrap-byte
+      (1+ (lognot val))))
+    (logand #x7f val)))
 
 (defun make-word-from-bytes (hi lo)
   (wrap-word
@@ -225,7 +233,7 @@
   ;If the MSB is set, it's negative.
   (setf
    (flags-negative (cpu-sr c))
-   (if (ldb (byte 1 7) val)
+   (if (= (ldb (byte 1 7) val) 1)
      T
      nil)))
 
@@ -246,12 +254,7 @@
         (+
          (cpu-pc c)
          ;Perform two's complement to figure out the offset
-         (if (= (ldb (byte 1 7) lo-byte) 1)
-           (*
-            -1
-            (wrap-byte
-             (1+ (lognot (logand #x7f lo-byte)))))
-           (logand #x7f lo-byte)))))
+         (to-signed-byte-8 lo-byte))))
       ;Read the address contained at the supplied two byte address.
       ((equal mode :indirect)
        (let ((ptr-addr (make-word-from-bytes hi-byte lo-byte)))
