@@ -44,3 +44,36 @@
   (format
    nil
    "RTS to ~x." (cpu-pc c)))
+
+(defun bpl (c inst)
+  (when (not (flags-negative (cpu-sr c)))
+    ;Branch taken means increment cycles
+    (incf (cpu-cycles c))
+    (setf
+     (cpu-pc c)
+     (get-address c inst)))
+  (format
+   nil
+   "BPL pc is now 0x~x" (cpu-pc c)))
+
+(defun bcs (c inst)
+ (when (flags-carry (cpu-sr c))
+   ;Branch taken means increment cycles
+   (incf (cpu-cycles c))
+   (setf
+    (cpu-pc c)
+    (get-address c inst)))
+ (format
+  nil
+  "BCS pc is now 0x~x" (cpu-pc c)))
+
+(defun bne (c inst)
+ (when (not (flags-zero (cpu-sr c)))
+   ;Branch taken means increment cycles
+   (incf (cpu-cycles c))
+   (setf
+    (cpu-pc c)
+    (get-address c inst)))
+ (format
+  nil
+  "BNE pc is now 0x~x" (cpu-pc c)))
