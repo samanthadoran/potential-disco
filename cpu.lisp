@@ -7,7 +7,8 @@
            #:push-stack #:pull16 #:push16 #:cpu-cycles #:cpu-accumulator #:cpu-x
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
            #:wrap-byte #:step-cpu #:decode #:execute #:make-instruction
-           #:cpu-memory-get #:cpu-memory-set #:ora #:to-signed-byte-8))
+           #:cpu-memory-get #:cpu-memory-set #:ora #:to-signed-byte-8
+           #:trigger-nmi-callback #:trigger-irq-callback))
 
 (in-package :6502-cpu)
 
@@ -92,11 +93,43 @@
   (lo-byte 0 :type (unsigned-byte 8))
   (addressing-mode :implicit))
 
+(defun trigger-nmi-callback (c)
+  (lambda ()
+          (setf (cpu-interrupt c) :nmi)))
+
+(defun trigger-irq-callback (c)
+  (lambda ()
+          (when (equal :none (cpu-interrupt c))
+            (setf (cpu-interrupt c) :irq))))
+
 (defun wrap-byte (val)
   (logand #xFF val))
 
 (defun wrap-word (val)
   (logand #xFFFF val))
+
+(defun make-byte-from-flags (f)
+  (wrap-byte
+   (logior
+    (if (flags-carry f) 1 0)
+    (ash (if (flags-zero f) 1 0) 1)
+    (ash (if (flags-interrupt f) 1 0) 2)
+    (ash (if (flags-bcd f) 1 0) 3)
+    (ash (if (flags-soft-interrupt f) 1 0) 4)
+    (ash (if (flags-unused f) 1 0) 5)
+    (ash (if (flags-overflow f) 1 0) 6)
+    (ash (if (flags-negative f) 1 0) 7))))
+
+(defun make-flags-from-byte (val)
+  (make-flags
+   :carry (= (ldb (byte 1 0) val) 1)
+   :interrupt (= (ldb (byte 1 1) val) 1)
+   :zero (= (ldb (byte 1 2) val) 1)
+   :bcd (= (ldb (byte 1 3) val) 1)
+   :soft-interrupt (= (ldb (byte 1 4) val) 1)
+   :unused (= (ldb (byte 1 5) val) 1)
+   :overflow (= (ldb (byte 1 6) val) 1)
+   :negative (= (ldb (byte 1 7) val) 1)))
 
 (defun to-signed-byte-8 (val)
   (if (= (ldb (byte 1 7) val) 1)
@@ -441,6 +474,20 @@
       (print (format nil "Uknown instruction... ~a" inst)))
     (incf (cpu-cycles c) cycles)
     cycles))
+
+(defun nmi (c)
+  (push16 c (cpu-pc c))
+  (php c)
+  (setf (cpu-pc c) (read-cpu c #xFFFA))
+  (setf (flags-interrupt (cpu-sr c)) T)
+  (incf (cpu-cycles c) 7))
+
+(defun irq (c)
+  (push16 c (cpu-pc c))
+  (php c)
+  (setf (cpu-pc c) (read-cpu c #xFFFA))
+  (setf (flags-interrupt (cpu-sr c)) T)
+  (incf (cpu-cycles c) 7))
 
 (defun step-cpu (c)
   "Steps the cpu through an instruction, returns the number of cycles it took."

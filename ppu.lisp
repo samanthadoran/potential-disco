@@ -9,7 +9,8 @@
 (defpackage #:NES-ppu
   (:nicknames #:ppu)
   (:use :cl :cl-user)
-  (:export ))
+  (:export #:step-ppu #:make-ppu #:reset-ppu #:read-register #:write-register
+           #:ppu-trigger-nmi-callback))
 
 (in-package :NES-ppu)
 
@@ -26,12 +27,44 @@
   (g 0 :type (unsigned-byte 8))
   (b 0 :type (unsigned-byte 8)))
 
+(defun wrap-byte (val)
+  (logand #xFF val))
+
+(defun wrap-word (val)
+  (logand #xFFFF val))
+
+(defvar
+  *palette*
+  (progn
+   (let ((pal (make-array 64 :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0)))
+         (colors
+          (make-array
+           64
+           :element-type '(unsigned-byte 32)
+           :initial-contents
+           '(#x666666 #x002A88 #x1412A7 #x3B00A4 #x5C007E #x6E0040 #x6C0600 #x561D00
+	           #x333500 #x0B4800 #x005200 #x004F08 #x00404D #x000000 #x000000 #x000000
+	           #xADADAD #x155FD9 #x4240FF #x7527FE #xA01ACC #xB71E7B #xB53120 #x994E00
+	           #x6B6D00 #x388700 #x0C9300 #x008F32 #x007C8D #x000000 #x000000 #x000000
+	           #xFFFEFF #x64B0FF #x9290FF #xC676FF #xF36AFF #xFE6ECC #xFE8170 #xEA9E22
+             #xBCBE00 #x88D800 #x5CE430 #x45E082 #x48CDDE #x4F4F4F #x000000 #x000000
+	           #xFFFEFF #xC0DFFF #xD3D2FF #xE8C8FF #xFBC2FF #xFEC4EA #xFECCC5 #xF7D8A5
+	           #xE4E594 #xCFEF96 #xBDF4AB #xB3F3CC #xB5EBF2 #xB8B8B8 #x000000 #x000000))))
+     (loop for i from 0 to 63
+       do
+       (let* ((c (aref colors i))
+             (r (wrap-byte (ash c -16)))
+             (g (wrap-byte (ash c -8)))
+             (b (wrap-byte c)))
+         (setf (aref pal i) (make-color :r r :g g :b b))))
+     pal)))
+
+
+
 (defstruct ppu
   "A model picture processing unit"
   (front (make-array '(240 256) :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0)))
   (back (make-array '(240 256) :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0)))
-
-  (nmi-callback 0)
 
   (cycle 0)
   (scanline 0)
@@ -54,6 +87,8 @@
   (nmi-output nil)
   (nmi-previous nil)
   (nmi-delay 0)
+
+  (trigger-nmi-callback 0)
 
   ;Tiles
   (name-table 0 :type (unsigned-byte 8))
@@ -97,17 +132,12 @@
   ;Buffer for $2007 Data Read
   (buffered-data 0 :type (unsigned-byte 8)))
 
-(defun wrap-byte (val)
-  (logand #xFF val))
-
-(defun wrap-word (val)
-  (logand #xFFFF val))
-
-(defun nmi-change (p)
-  (let ((nmi (and (ppu-nmi-output p) (ppu-nmi-occurred p))))
-    (when (and nmi (ppu-nmi-previous p))
-      (setf (ppu-nmi-delay p) 15))
-    (setf (ppu-nmi-previous p) nmi)))
+(defun read-ppu (p address)
+  (declare (ignore p address))
+  0)
+(defun write-ppu (p address value)
+  (declare (ignore p address value))
+  0)
 
 (defun read-palette (p address)
   (aref
@@ -193,14 +223,14 @@
      (logior
       (logior
        result
-       (wrap-byte (ash (ppu-flag-sprite-overflow p) -5)))
-      (wrap-byte (ash (ppu-flag-sprite-zero-hit p) -6))))
+       (wrap-byte (ash (ppu-flag-sprite-overflow p) 5)))
+      (wrap-byte (ash (ppu-flag-sprite-zero-hit p) 6))))
     (setf
      result
      (if (ppu-nmi-occurred p)
        (logior
         result
-        (wrap-byte (ash 1 -7)))
+        (wrap-byte (ash 1 7)))
        result))
     (setf
      (ppu-nmi-occurred p)
@@ -366,9 +396,183 @@
     ;Write Data
     ((= selector 7) (write-data p value))
     ;Write DMA
-    ((= selector #x14) (write-dma p value))
-    (T (format t "We really can't write to register 0x~x" selector))))
+    ((= selector #x4014) (write-dma p value))
+    (T (format t "We really can't write to register ~x" selector))))
 
+(defun increment-x (p)
+  (if (= (logand (ppu-v p) #x001F) 31)
+    (setf (ppu-v p) (logxor #x0400 (logand (ppu-v p) #xFFE0))))
+    (setf (ppu-v p) (wrap-word (1+ (ppu-v p)))))
+
+(defun increment-y (p)
+  (if (not (= (logand (ppu-v p) #x7000) #x7000))
+    (setf (ppu-v p) (+ #x1000 (ppu-v p)))
+    (progn
+     (setf (ppu-v p) (logand (ppu-v p) #x8FFF))
+     (let ((y (ash (logand (ppu-v p) #x03E0) -5)))
+       (if (= y 29)
+         (progn
+          (setf y 0)
+          (setf (ppu-v p) (logxor (ppu-v p) #x0800)))
+         (if (= y 31)
+           (setf y 0)
+           (incf y)))
+       (setf (ppu-v p) (wrap-word (logior (logand (ppu-v p) #xFC1F) (ash y 5))))))))
+
+(defun copy-x (p)
+  (setf (ppu-v p) (logior (logand (ppu-v p) #xFBE0) (logand (ppu-tv p) #x041F))))
+
+(defun copy-y (p)
+  (setf (ppu-v p) (logior (logand (ppu-v p) #x841F) (logand (ppu-tv p) #x7BE0))))
+
+(defun nmi-change (p)
+  (let ((nmi (and (ppu-nmi-output p) (ppu-nmi-occurred p))))
+    (when (and nmi (not (ppu-nmi-previous p)))
+      (setf (ppu-nmi-delay p) 15))
+    (setf (ppu-nmi-previous p) nmi)))
+
+(defun set-vertical-blank (p)
+  (psetf (ppu-front p) (ppu-back p) (ppu-back p) (ppu-front p))
+  (setf (ppu-nmi-occurred p) T)
+  (nmi-change p))
+
+(defun clear-vertical-blank (p)
+  (setf (ppu-nmi-occurred p) nil)
+  (nmi-change p))
+
+(defun fetch-name-table (p)
+  (let* ((v (ppu-v p))
+         (address (logior #x2000 (logand v #x0FFF))))
+    (setf
+     (ppu-name-table p)
+     (wrap-byte (read-ppu p address)))))
+
+(defun fetch-attribute-table (p)
+  (let* ((v (ppu-v p))
+         (address
+          (wrap-word
+           (logior
+            #x23C0
+            (logand v #x0C00)
+            (logand #x38 (ash v -4))
+            (logand #x07 (ash v -2)))))
+         (shift (logior (logand (ash v -4) 4) (logand v 2))))
+    (setf
+     (ppu-attribute-table p)
+     (wrap-byte
+      (ash
+       (logand
+        (ash (read-ppu p address) (* -1 shift))
+        3)
+       2)))))
+
+(defun fetch-low-tile (p)
+  (let* ((fine-y (logand 7 (ash (ppu-v p) -7)))
+         (table (ppu-flag-name-table p))
+         (tile (ppu-name-table p))
+         (address (+ (* #x1000 (wrap-word table)) (* 16 (wrap-word tile)) fine-y)))
+    (setf (ppu-high-tile p) (read-ppu p (wrap-word address)))))
+
+(defun fetch-high-tile (p)
+  (let* ((fine-y (logand 7 (ash (ppu-v p) -7)))
+         (table (ppu-flag-name-table p))
+         (tile (ppu-name-table p))
+         (address (+ (* #x1000 (wrap-word table)) (* 16 (wrap-word tile)) fine-y)))
+    (setf (ppu-high-tile p) (read-ppu p (wrap-word (+ address 8))))))
+
+(defun store-tile-data (p)
+  (let ((data #x00000000))
+    (loop for i from 0 to 7
+      do
+      (let ((a (ppu-attribute-table p))
+            (p1 (ash (logand #x80 (ppu-low-tile p)) -7))
+            (p2 (ash (logand #x80 (ppu-high-tile p)) -6)))
+        (setf
+         (ppu-low-tile p)
+         (wrap-byte (ash (ppu-low-tile p) 1)))
+        (setf
+         (ppu-high-tile p)
+         (wrap-byte (ash (ppu-high-tile p) 1)))
+        (setf
+         data
+         (ash data 4))
+        (setf
+         data
+         (logand
+          #xFFFFFFFF
+          (logior
+           a
+           p1
+           p2
+           data)))))
+    (setf (ppu-tile-data p) (logior (ppu-tile-data p) data))))
+
+(defun fetch-tile-data (p)
+  (logand
+   #xFFFFFFFF
+   (ash
+    (ppu-tile-data p)
+    -32)))
+
+(defun background-pixel (p)
+  (if (= (ppu-flag-show-background p) 0)
+    0
+    (progn
+     (logand
+      #x0F
+      (ash
+       (fetch-tile-data p)
+       (* (- 7 (ppu-x p)) 4 -1))))))
+
+(defun sprite-pixel (p)
+  (when (= (ppu-flag-show-sprites p) 0)
+    (return-from sprite-pixel (list 0 0)))
+  (loop for i from 0 to (- (ppu-sprite-count p) 1)
+    do
+    (progn
+     (let ((offset (- (- (ppu-cycle p) 1) (aref (ppu-sprite-positions p) i))))
+       (when (= (ppu-flag-show-sprites p) 0)
+         (return-from sprite-pixel (list 0 0)))
+       (when (and (>= offset 0) (<= offset 7))
+         (setf offset (- 7 offset))
+         (let (
+               (color
+                (wrap-byte
+                 (logand
+                  #x0F
+                  (ash
+                   (aref (ppu-sprite-patterns p) i)
+                   (wrap-byte (* offset 4)))))))
+           (when (not (= (mod color 4) 0))
+             (return-from sprite-pixel (list (wrap-byte i) color))))))))
+  (return-from sprite-pixel (list 0 0)))
+
+(defun render-pixel (p)
+  (destructuring-bind
+   (i sprite)
+   (sprite-pixel p)
+   (let ((x (- (ppu-cycle p) 1))
+        (y (ppu-scanline p))
+        (background (background-pixel p)))
+     (when (and (< x 8) (= (ppu-flag-show-left-background p) 0))
+       (setf background 0))
+     (when (and (< x 8) (= (ppu-flag-show-left-sprites p) 0))
+       (setf sprite 0))
+     (let ((b (not (= (mod background 4) 0)))
+           (s (not (= (mod sprite 4) 0)))
+           (color 0))
+       (cond
+         ((not (or b s)) (setf color 0))
+         ((and (not b) s) (setf color (logior #x10 sprite)))
+         ((and b (not s)) (setf color background))
+         (T
+          (progn
+           (when (and (< x 255) (= (aref (ppu-sprite-indexes p) i) 0))
+             (setf (ppu-flag-sprite-zero-hit p) 1))
+           (if (= (aref (ppu-sprite-priorities p) i) 0)
+             (setf color (logior sprite #x10))
+             (setf color background)))))
+       (setf (aref (ppu-back p) y x) (aref *palette* (read-palette p (mod color 64))))))))
 
 (defun fetch-sprite-pattern (p i r)
   (let* ((tile (aref (ppu-oam-data p) (1+ (* i 4))))
@@ -384,9 +588,9 @@
          (setf
           address
           (+
-           (* #x1000 (make-word table))
-           (* 16 (make-word tile))
-           (make-word row)))))
+           (* #x1000 (wrap-word table))
+           (* 16 (wrap-word tile))
+           (wrap-word row)))))
       (progn
        (when (= (logand attributes #x80) #x80)
          (setf row (- 15 row)))
@@ -398,11 +602,11 @@
          (setf
           address
           (+
-           (* #x1000 (make-word table))
-           (* (make-word tile) 16)
-           (make-word row))))))
-    (let ((low-tile-byte (read-ppu p address))
-          (high-tile-byte (read-ppu p (make-word (+ address 8))))
+           (* #x1000 (wrap-word table))
+           (* (wrap-word tile) 16)
+           (wrap-word row))))))
+    (let ((low-tile (read-ppu p address))
+          (high-tile (read-ppu p (wrap-word (+ address 8))))
           (data #x00000000))
       (loop for i from 0 to 7
         do
@@ -410,15 +614,15 @@
               (p2 0))
           (if (= (logand attributes #x40) #x40)
             (progn
-             (setf p1 (logand low-tile-byte 1))
-             (setf p2 (ash (logand high-tile-byte 1) 1))
-             (setf low-tile-byte (ash low-tile-byte -1))
-             (setf high-tile-byte (ash high-tile-byte -1)))
+             (setf p1 (logand low-tile 1))
+             (setf p2 (ash (logand high-tile 1) 1))
+             (setf low-tile (ash low-tile -1))
+             (setf high-tile (ash high-tile -1)))
             (progn
-             (setf p1 (ash (logand low-tile-byte #x80) -7))
-             (setf p2 (ash (logand high-tile-byte #x80) -6))
-             (setf low-tile-byte (ash low-tile-byte 1))
-             (setf high-tile-byte (ash high-tile-byte 1))))
+             (setf p1 (ash (logand low-tile #x80) -7))
+             (setf p2 (ash (logand high-tile #x80) -6))
+             (setf low-tile (ash low-tile 1))
+             (setf high-tile (ash high-tile 1))))
           (setf data (logand #xFFFFFFFF (ash data -4)))
           (setf data (logior data a p1 p2))))
       data)))
@@ -457,7 +661,7 @@
       (setf (ppu-flag-sprite-overflow p) 1))
     (setf (ppu-sprite-count p) count)))
 
-(defun reset (p)
+(defun reset-ppu (p)
   (setf
    (ppu-cycle p)
    340)
@@ -478,7 +682,7 @@
     (decf (ppu-nmi-delay p))
     ;Trigger it if we have run out of time and there even is one
     (when (and (= (ppu-nmi-delay p) 0) (ppu-nmi-output p) (ppu-nmi-occurred p))
-      (trigger-nmi-callback p)))
+      (funcall (ppu-trigger-nmi-callback p))))
   (when
     (not
      (=
@@ -538,13 +742,13 @@
          (logand
           #xFFFFFFFFFFFFFFFF
           (ash (ppu-tile-data p) -4)))
-        ;Dependingon what cycle we are in, act accordingly
+        ;Dependingon what cycle we are in act accordingly
         (cond
           ((= (mod cycle 8) 0) (store-tile-data p))
-          ((= (mod cycle 8) 1) (fetch-name-table-byte p))
-          ((= (mod cycle 8) 3) (fetch-attribute-table-byte p))
-          ((= (mod cycle 8) 5) (fetch-low-tile-byte p))
-          ((= (mod cycle 8) 7) (fetch-high-tile-byte p))))
+          ((= (mod cycle 8) 1) (fetch-name-table p))
+          ((= (mod cycle 8) 3) (fetch-attribute-table p))
+          ((= (mod cycle 8) 5) (fetch-low-tile p))
+          ((= (mod cycle 8) 7) (fetch-high-tile p))))
       ;When we are on preline and
       (when (and pre-line (>= (ppu-cycle p) 280) (<= (ppu-cycle p) 304))
         (copy-y p))

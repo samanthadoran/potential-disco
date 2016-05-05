@@ -1,10 +1,12 @@
 (in-package :6502-cpu)
 
 (setf (gethash #x01 instructions) #'ora)
+(setf (gethash #x08 instructions) #'php)
 (setf (gethash #x10 instructions) #'bpl)
 (setf (gethash #x20 instructions) #'jsr)
 (setf (gethash #x21 instructions) #'anda)
 ; (setf (gethash #x24 instructions) #'bit)
+(setf (gethash #x28 instructions) #'plp)
 ; (setf (gethash #x2C instructions) #'bit)
 (setf (gethash #x40 instructions) #'jmp-absolute)
 (setf (gethash #x60 instructions) #'rts)
