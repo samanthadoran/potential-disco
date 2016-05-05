@@ -305,6 +305,40 @@
    :lo-byte (read-cpu c (+ (cpu-pc c) 1))
    :hi-byte (read-cpu c (+ (cpu-pc c) 2))))
 
+(defun determine-addressing-mode (opcode)
+  ;We really only care about the opcode as: AAA???CC
+  ;BBB is normally just addressing mode, which we store in the intstruction
+  (let ((cc (logand opcode #x03))
+        (bbb (logand (ash opcode -2) #x07))
+        (aaa (logand (ash opcode -5) #x07)))
+    (case cc
+      (0
+       (case bbb
+         (0 :immediate)
+         (1 :zero-page)
+         (3 :absolute)
+         (5 :zero-page-indexed-x)
+         (7 :absolute-indexed-x)))
+      (1
+       (case bbb
+         (0 :indexed-indirect)
+         (1 :zero-page)
+         (2 :immediate)
+         (3 :absolute)
+         (4 :indirect-indexed)
+         (5 :zero-page-indexed-x)
+         (6 :absolute-indexed-y)
+         (7 :absolute-indexed-x)))
+      (2
+       (case bbb
+         (0 :immediate)
+         (1 :zero-page)
+         (2 :accumulator)
+         (3 :absolute)
+         (5 (if (member aaa '(4 5)) :zero-page-indexed-y :zero-page-indexed-x))
+         (7 (if (= aaa 5) :absolute-indexed-y :absolute-indexed-x))))
+      (otherwise (print "Bad opcode")))))
+
 ;TODO: Test this somehow...
 (defun decode (inst)
   "Decodes the opcode and returns a constructed instruction."
@@ -312,228 +346,56 @@
     ((opcode (instruction-unmasked-opcode inst))
      (lo-byte (instruction-lo-byte inst))
      (hi-byte (instruction-hi-byte inst))
-     (cc (logand opcode #x03))
-     (bbb (logand (ash opcode -2) #x07))
-     (aaa (logand (ash opcode -5) #x07))
-     ;We really only care about the opcode as: AAA???CC
-     ;BBB is normally just addressing mode, which we store in the intstruction
-     (masked-opcode (logand opcode #xE3)))
+     (masked-opcode (logand opcode #xE3))
+     (addressing-mode (determine-addressing-mode opcode)))
+    ;If it is a special case, modify
     (cond
-      ((= cc 0)
-       (cond
-         ;Branching
-         ((member opcode '(#x10 #x30 #x50 #x70 #x90 #xB0 #xD0 #xF0))
-          (make-instruction
-           :addressing-mode :relative
-           :opcode opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ;BRK, RTI, RTS, interrupt and subroutines
-         ((member opcode '(#x0 #x40 #x60))
-          (make-instruction
-           :addressing-mode :implicit
-           :opcode opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ;JSR ABS and BIT ABS
-         ((member opcode '(#x20 #x2C))
-          (make-instruction
-           :addressing-mode :absolute
-           :opcode opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ;BIT ZP
-         ((= opcode #x24)
-          (make-instruction
-           :addressing-mode :zero-page
-           :opcode opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ;JMP Indirect, emulate the bug!
-         ((= opcode #x6C)
-          (make-instruction
-           :addressing-mode :indirect
-           :opcode opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ;A bunch of single byte instructions that follow no pattern
-         ((member opcode '(#x08 #x28 #x48 #x68 #x88 #xA8 #xC8 #xE8 #x18
-                            #x38 #x58 #x78 #x98 #xB8 #xD8 #xF8))
-          (make-instruction
-           :addressing-mode :implicit
-           :opcode opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         (T (cond
-           ((= bbb 0)
-            (make-instruction
-             :addressing-mode :immediate
-             :opcode masked-opcode
-             :unmasked-opcode opcode
-             :hi-byte hi-byte
-             :lo-byte lo-byte))
-           ((= bbb 1)
-            (make-instruction
-             :addressing-mode :zero-page
-             :opcode masked-opcode
-             :unmasked-opcode opcode
-             :hi-byte hi-byte
-             :lo-byte lo-byte))
-           ((= bbb 3)
-            (make-instruction
-             :addressing-mode :absolute
-             :opcode masked-opcode
-             :unmasked-opcode opcode
-             :hi-byte hi-byte
-             :lo-byte lo-byte))
-           ((= bbb 5)
-            (make-instruction
-             :addressing-mode :zero-page-indexed-x
-             :opcode masked-opcode
-             :unmasked-opcode opcode
-             :hi-byte hi-byte
-             :lo-byte lo-byte))
-           ((= bbb 7)
-            (make-instruction
-             :addressing-mode :absolute-indexed-x
-             :opcode masked-opcode
-             :unmasked-opcode opcode
-             :hi-byte hi-byte
-             :lo-byte lo-byte))
-           (T (print "BAD OP! Got to default case in cc=0"))))))
-      ((= cc 1)
-       (cond
-         ((= bbb 0)
-          (make-instruction
-           :addressing-mode :indexed-indirect
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ((= bbb 1)
-          (make-instruction
-           :addressing-mode :zero-page
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ((= bbb 2)
-          (make-instruction
-           :addressing-mode :immediate
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ((= bbb 3)
-          (make-instruction
-           :addressing-mode :absolute
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ((= bbb 4)
-          (make-instruction
-           :addressing-mode :indirect-indexed
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ((= bbb 5)
-          (make-instruction
-           :addressing-mode :zero-page-indexed-x
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ((= bbb 6)
-          (make-instruction
-           :addressing-mode :absolute-indexed-y
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         ((= bbb 7)
-          (make-instruction
-           :addressing-mode :absolute-indexed-x
-           :opcode masked-opcode
-           :unmasked-opcode opcode
-           :hi-byte hi-byte
-           :lo-byte lo-byte))
-         (T (print "BAD OP! Got to default case in cc=1"))))
-      ((= cc 2)
-       ;Yet more special case ops
-       (if (member opcode '(#x8A #x9A #xAA #xBA #xCA #xEA))
-         (make-instruction
-          :addressing-mode :implicit
-          :opcode opcode
-          :unmasked-opcode opcode
-          :hi-byte hi-byte
-          :lo-byte lo-byte)
-         (cond
-           ((= bbb 0)
-           (make-instruction
-            :addressing-mode :immediate
-            :opcode masked-opcode
-            :unmasked-opcode opcode
-            :hi-byte hi-byte
-            :lo-byte lo-byte))
-           ((= bbb 1)
-           (make-instruction
-            :addressing-mode :zero-page
-            :opcode masked-opcode
-            :unmasked-opcode opcode
-            :hi-byte hi-byte
-            :lo-byte lo-byte))
-           ((= bbb 2)
-           (make-instruction
-            :addressing-mode :accumulator
-            :opcode masked-opcode
-            :unmasked-opcode opcode
-            :hi-byte hi-byte
-            :lo-byte lo-byte))
-           ((= bbb 3)
-           (make-instruction
-            :addressing-mode :absolute
-            :opcode masked-opcode
-            :unmasked-opcode opcode
-            :hi-byte hi-byte
-            :lo-byte lo-byte))
-           ((= bbb 5)
-            (if (member aaa '(4 5))
-              (make-instruction
-               :addressing-mode :zero-page-indexed-y
-               :opcode masked-opcode
-               :unmasked-opcode opcode
-               :hi-byte hi-byte
-               :lo-byte lo-byte)
-              (make-instruction
-               :addressing-mode :zero-page-indexed-x
-               :opcode masked-opcode
-               :unmasked-opcode opcode
-               :hi-byte hi-byte
-               :lo-byte lo-byte)))
-           ((= bbb 7)
-            (if (= aaa 5)
-              (make-instruction
-               :addressing-mode :absolute-indexed-y
-               :opcode masked-opcode
-               :unmasked-opcode opcode
-               :hi-byte hi-byte
-               :lo-byte lo-byte)
-              (make-instruction
-               :addressing-mode :absolute-indexed-x
-               :opcode masked-opcode
-               :unmasked-opcode opcode
-               :hi-byte hi-byte
-               :lo-byte lo-byte)))
-           (T (print "BAD OP! Got to default case in cc=2")))))
-      (T (print "This shouldn't happen. BAD OP!")))))
+      ((member
+        opcode
+        '(#x10 #x30 #x50 #x70 #x90 #xB0 #xD0 #xF0))
+       (progn
+        (setf addressing-mode :relative)
+        (setf masked-opcode opcode)))
+      ((member
+        opcode
+        '(#x0 #x40 #x60))
+       (progn
+        (setf addressing-mode :implicit)
+        (setf masked-opcode opcode)))
+      ((member
+        opcode
+        '(#x20 #x2C))
+       (progn
+        (setf addressing-mode :absolute)
+        (setf masked-opcode opcode)))
+      ((= opcode #x6C)
+       (progn
+        (setf addressing-mode :indirect)
+        (setf masked-opcode opcode)))
+      ((= opcode #x24)
+       (progn
+        (setf addressing-mode :zero-page)
+        (setf masked-opcode opcode)))
+      ((member opcode '(#x0 #x40 #x60))
+       (progn
+        (setf addressing-mode :implicit)
+        (setf masked-opcode opcode)))
+      ((member opcode '(#x08 #x28 #x48 #x68 #x88 #xA8 #xC8 #xE8 #x18
+                         #x38 #x58 #x78 #x98 #xB8 #xD8 #xF8))
+       (progn
+        (setf addressing-mode :implicit)
+        (setf masked-opcode opcode)))
+      ((member opcode '(#x8A #x9A #xAA #xBA #xCA #xEA))
+       (progn
+        (setf addressing-mode :implicit)
+        (setf masked-opcode opcode))))
+    ;Make the instruction
+    (make-instruction
+     :addressing-mode addressing-mode
+     :opcode masked-opcode
+     :unmasked-opcode opcode
+     :hi-byte hi-byte
+     :lo-byte lo-byte)))
 
 (defun instruction-cycles (c inst)
   (let* ((address (get-address c inst))
