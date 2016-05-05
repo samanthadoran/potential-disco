@@ -481,9 +481,10 @@
       (trigger-nmi-callback p)))
   (when
     (not
-     (and
-      (= (ppu-flag-show-background p) 0)
-      (= (ppu-flag-show-sprites p) 0)))
+     (=
+      0
+      (ppu-flag-show-background p)
+      (ppu-flag-show-sprites p)))
     (when
       (and
        (= (ppu-f p) 0)
@@ -514,9 +515,10 @@
          (scanline (ppu-scanline p))
          (rendering-enabled
           (not
-           (and
-            (= (ppu-flag-show-background p) 0)
-            (= (ppu-flag-show-sprites p) 0))))
+           (=
+            0
+            (ppu-flag-show-background p)
+            (ppu-flag-show-sprites p))))
          (pre-line (= scanline 261))
          (visible-line (< scanline 240))
          (render-line (or pre-line visible-line))
