@@ -67,7 +67,7 @@
   (sprite-patterns (make-array 8 :element-type '(unsigned-byte 32)))
   (sprite-positions (make-array 8 :element-type '(unsigned-byte 8)))
   (sprite-priorities (make-array 8 :element-type '(unsigned-byte 8)))
-  (sprite-indices (make-array 8 :element-type '(unsigned-byte 8)))
+  (sprite-indexes (make-array 8 :element-type '(unsigned-byte 8)))
 
   ;$2000 PPU Control
   (flag-name-table 0 :type (unsigned-byte 2))
@@ -369,6 +369,94 @@
     ((= selector #x14) (write-dma p value))
     (T (format t "We really can't write to register 0x~x" selector))))
 
+
+(defun fetch-sprite-pattern (p i r)
+  (let* ((tile (aref (ppu-oam-data p) (1+ (* i 4))))
+        (attributes (aref (ppu-oam-data p) (+ 2 (* i 4))))
+        (address #x0000)
+        (a (ash (logand attributes 3) -2))
+        (row r))
+    (if (= (ppu-flag-sprite-size p) 0)
+      (progn
+       (when (= (logand attributes #x80) #x80)
+         (setf row (- 7 row)))
+       (let ((table (ppu-flag-sprite-table p)))
+         (setf
+          address
+          (+
+           (* #x1000 (make-word table))
+           (* 16 (make-word tile))
+           (make-word row)))))
+      (progn
+       (when (= (logand attributes #x80) #x80)
+         (setf row (- 15 row)))
+       (let ((table (logand tile 1)))
+         (setf tile (logand tile #xFE))
+         (when (> row 7)
+           (incf tile)
+           (decf row 8))
+         (setf
+          address
+          (+
+           (* #x1000 (make-word table))
+           (* (make-word tile) 16)
+           (make-word row))))))
+    (let ((low-tile-byte (read-ppu p address))
+          (high-tile-byte (read-ppu p (make-word (+ address 8))))
+          (data #x00000000))
+      (loop for i from 0 to 7
+        do
+        (let ((p1 0)
+              (p2 0))
+          (if (= (logand attributes #x40) #x40)
+            (progn
+             (setf p1 (logand low-tile-byte 1))
+             (setf p2 (ash (logand high-tile-byte 1) 1))
+             (setf low-tile-byte (ash low-tile-byte -1))
+             (setf high-tile-byte (ash high-tile-byte -1)))
+            (progn
+             (setf p1 (ash (logand low-tile-byte #x80) -7))
+             (setf p2 (ash (logand high-tile-byte #x80) -6))
+             (setf low-tile-byte (ash low-tile-byte 1))
+             (setf high-tile-byte (ash high-tile-byte 1))))
+          (setf data (logand #xFFFFFFFF (ash data -4)))
+          (setf data (logior data a p1 p2))))
+      data)))
+
+(defun evaluate-sprites (p)
+  (let (
+        (h
+         (if (= (ppu-flag-sprite-size p) 0)
+           8
+           16))
+        (count 0))
+    (loop for i from 0 to 64
+      do
+      (progn
+       (let* ((y (aref (ppu-oam-data p) (* i 4)))
+             (a (aref (ppu-oam-data p) (+ 2 (* i 4))))
+             (x (aref (ppu-oam-data p) (+ 3 (* i 4))))
+             (row (- (ppu-scanline p) y)))
+         (when (and (>= row 0) (< row h))
+           (when (< count 8)
+             (setf
+              (aref (ppu-sprite-patterns p) count)
+              (fetch-sprite-pattern p i row))
+             (setf
+              (aref (ppu-sprite-positions p) count)
+              x)
+             (setf
+              (aref (ppu-sprite-priorities p) count)
+              (logand 1 (ash a -5)))
+             (setf
+              (aref (ppu-sprite-indexes p) count)
+              (wrap-byte i)))
+           (incf count)))))
+    (when (> count 8)
+      (setf count 8)
+      (setf (ppu-flag-sprite-overflow p) 1))
+    (setf (ppu-sprite-count p) count)))
+
 (defun reset (p)
   (setf
    (ppu-cycle p)
@@ -382,3 +470,98 @@
   (write-control p 0)
   (write-mask p 0)
   (write-oam-address p 0))
+
+(defun tick (p)
+  ;While the nmi delay is greater than zero...
+  (when (> (ppu-nmi-delay p) 0)
+    ;Decrement it...
+    (decf (ppu-nmi-delay p))
+    ;Trigger it if we have run out of time and there even is one
+    (when (and (= (ppu-nmi-delay p) 0) (ppu-nmi-output p) (ppu-nmi-occurred p))
+      (trigger-nmi-callback p)))
+  (when
+    (not
+     (and
+      (= (ppu-flag-show-background p) 0)
+      (= (ppu-flag-show-sprites p) 0)))
+    (when
+      (and
+       (= (ppu-f p) 0)
+       (= (ppu-scanline p) 261)
+       (= (ppu-cycle p) 339))
+      (setf (ppu-cycle p) 0)
+      (setf (ppu-scanline p) 0)
+      (incf (ppu-frame p))
+      (setf (ppu-f p) (logxor (ppu-f p) 1))
+      (return-from tick 0)))
+  (incf (ppu-cycle p))
+  ;We've hit the end of the scanline
+  (when (> (ppu-cycle p) 340)
+    ;Reset the cycle number
+    (setf (ppu-cycle p) 0)
+    ;Increment the scanline
+    (incf (ppu-scanline p))
+    ;And finally do housework if we need to go back to top
+    (when (> (ppu-scanline p) 261)
+      (setf (ppu-scanline p) 0)
+      (incf (ppu-frame p))
+      (setf (ppu-f p) (logxor (ppu-f p) 1)))))
+
+(defun step-ppu (p)
+  (tick p)
+  (let* (
+         (cycle (ppu-cycle p))
+         (scanline (ppu-scanline p))
+         (rendering-enabled
+          (not
+           (and
+            (= (ppu-flag-show-background p) 0)
+            (= (ppu-flag-show-sprites p) 0))))
+         (pre-line (= scanline 261))
+         (visible-line (< scanline 240))
+         (render-line (or pre-line visible-line))
+         (pre-fetch-cycle (and (>= cycle 321) (<= cycle 336)))
+         (visible-cycle (and (>= cycle 1) (<= cycle 256)))
+         (fetch-cycle (or pre-fetch-cycle visible-cycle)))
+    (when rendering-enabled
+      ;Begin background logic
+      (when (and visible-line visible-cycle)
+        (render-pixel p))
+      ;When we are on a fetch cycle and a render line...
+      (when (and render-line fetch-cycle)
+        ;Shift tile data left four to make room
+        (setf
+         (ppu-tile-data p)
+         ;Make sure it continues to fit in 64 bits
+         (logand
+          #xFFFFFFFFFFFFFFFF
+          (ash (ppu-tile-data p) -4)))
+        ;Dependingon what cycle we are in, act accordingly
+        (cond
+          ((= (mod cycle 8) 0) (store-tile-data p))
+          ((= (mod cycle 8) 1) (fetch-name-table-byte p))
+          ((= (mod cycle 8) 3) (fetch-attribute-table-byte p))
+          ((= (mod cycle 8) 5) (fetch-low-tile-byte p))
+          ((= (mod cycle 8) 7) (fetch-high-tile-byte p))))
+      ;When we are on preline and
+      (when (and pre-line (>= (ppu-cycle p) 280) (<= (ppu-cycle p) 304))
+        (copy-y p))
+      (when render-line
+        (when (and fetch-cycle (= (mod cycle 8) 0))
+          (increment-x p))
+        (when (= cycle 256)
+          (increment-y p))
+        (when (= cycle 257)
+          (copy-x p)))
+      ;begin sprite logic
+      (when (= cycle 257)
+        (if visible-line
+          (evaluate-sprites p)
+          (setf (ppu-sprite-count p) 0))))
+    ;Begin vblank logic
+    (when (and (= scanline 241) (= (ppu-cycle p) 1))
+      (set-vertical-blank p))
+    (when (and pre-line (= (ppu-cycle p) 1))
+      (clear-vertical-blank p)
+      (setf (ppu-flag-sprite-zero-hit p) 0)
+      (setf (ppu-flag-sprite-overflow p) 0))))
