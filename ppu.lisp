@@ -10,7 +10,9 @@
   (:nicknames #:ppu)
   (:use :cl :cl-user)
   (:export #:step-ppu #:make-ppu #:reset-ppu #:read-register #:write-register
-           #:ppu-trigger-nmi-callback))
+           #:ppu-trigger-nmi-callback #:ppu-front #:ppu-back #:ppu-frame
+           #:color-r #:color-g #:color-b #:read-palette #:write-palette
+           #:ppu-memory-get #:ppu-memory-set))
 
 (in-package :NES-ppu)
 
@@ -69,6 +71,9 @@
   (cycle 0)
   (scanline 0)
   (frame 0)
+
+  (memory-get (make-array 3))
+  (memory-set (make-array 3))
 
   (palette-data (make-array 32 :element-type '(unsigned-byte 8)))
   (name-table-data (make-array 2048 :element-type '(unsigned-byte 8)))
@@ -132,12 +137,27 @@
   ;Buffer for $2007 Data Read
   (buffered-data 0 :type (unsigned-byte 8)))
 
-(defun read-ppu (p address)
-  (declare (ignore p address))
-  0)
-(defun write-ppu (p address value)
-  (declare (ignore p address value))
-  0)
+(defun read-ppu (p addr)
+  (cond
+    ;Mapper
+    ((< addr #x2000) (progn (print "Reads to mapper unimplemented") 0));(funcall (aref (ppu-memory-get p) 0) addr))
+    ;Name table data
+    ((< addr #x3F00) (progn (print "Reads to name-table-data unimplemented") 0));(funcall (aref (ppu-memory-get p) 1) addr))
+    ;Palette data
+    ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
+    ;Default case
+    (T (progn (format t "Cannot read from ~x" addr) 0))))
+
+(defun write-ppu (p addr val)
+  (cond
+    ;Mapper
+    ((< addr #x2000) (progn (print "Writes to mapper unimplemented") 0));(funcall (aref (ppu-memory-set p) 0) addr val))
+    ;Name table data
+    ((< addr #x3F00) (progn (print "Writes to name-table-data unimplemented") 0));(funcall (aref (ppu-memory-set p) 1) addr val))
+    ;Palette data
+    ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
+    ;Default case
+    (T (progn (format t "Cannot write to ~x" addr) 0))))
 
 (defun read-palette (p address)
   (aref
