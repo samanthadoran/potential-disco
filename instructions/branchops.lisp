@@ -17,7 +17,7 @@
      addr)
     (format
      nil
-     "JMP absolute to ~x" addr)))
+     "JMP absolute to 0x~x" addr)))
 
 (defun jmp-indirect (c inst)
   (let ((hi (instruction-hi-byte inst))
