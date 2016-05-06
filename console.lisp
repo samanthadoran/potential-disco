@@ -3,15 +3,29 @@
 (defpackage #:NES-console
   (:nicknames #:nes)
   (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu)
-  (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes))
+  (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes
+           #:step-frame #:setup-and-emulate))
 
 (in-package :NES-console)
+
+
+(ql:quickload "sdl2")
+(require :sdl2)
+(require :cl-opengl)
 
 (defstruct nes
   "A model nes"
   (cpu (6502-cpu:make-cpu))
   (cart (NES-cartridge:make-cartridge))
   (ppu (NES-ppu:make-ppu)))
+
+(defun ppu-to-palette-read (n)
+  (lambda (addr)
+          (NES-ppu:read-palette (nes-ppu n) (mod addr 32))))
+
+(defun ppu-to-palette-write (n)
+  (lambda (addr val)
+          (NES-ppu:write-palette (nes-ppu n) (mod addr 32) val)))
 
 (defun cpu-to-cpu-read (n)
   (lambda (addr)
@@ -57,6 +71,12 @@
   (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/smb.nes"))
   (setf (NES-ppu:ppu-trigger-nmi-callback (nes-ppu n)) (6502-cpu:trigger-nmi-callback (nes-cpu n)))
   (setf
+   (aref (NES-ppu:ppu-memory-get (nes-ppu n)) 2)
+   (ppu-to-palette-read n))
+  (setf
+   (aref (NES-ppu:ppu-memory-set (nes-ppu n)) 2)
+   (ppu-to-palette-write n))
+  (setf
    (aref (6502-cpu:cpu-memory-get (nes-cpu n)) 0)
    (cpu-to-cpu-read n))
   (setf
@@ -80,3 +100,49 @@
       (loop for i from 1 to cycles
         do
         (NES-ppu:step-ppu (nes-ppu n))))))
+
+(defun step-frame (n)
+  (let ((frame (NES-ppu:ppu-frame (nes-ppu n))))
+    (loop
+      do
+      (progn
+       (when (not (= frame (NES-ppu:ppu-frame (nes-ppu n)))) (return))
+       (step-nes n 1)))))
+
+(defun test-render-clear (renderer)
+  (progn (sdl2:set-render-draw-color renderer 0 0 0 255)
+       (sdl2:render-clear renderer)))
+
+(defun render-nes (front renderer)
+  (loop for y from 0 to (- (array-dimension front 0) 1)
+    do
+    (loop for x from 0 to (- (array-dimension front 1) 1)
+      do
+      (sdl2:with-points ((p y x))
+        (let* ((color (aref front y x))
+               (r (color-r color))
+               (g (color-g color))
+               (b (color-b color)))
+       (sdl2:set-render-draw-color renderer r g b 255)
+       (multiple-value-bind (points num)
+        (sdl2:points* p)
+        (sdl2:render-draw-points renderer points num)))))))
+
+(defun setup-and-emulate ()
+  (let ((a (make-nes)))
+    (console-on a)
+    (sdl2:with-init (:everything)
+      (sdl2:with-window (win :title "SDL2 Renderer API Demo" :flags '(:shown))
+        (sdl2:with-renderer (renderer win :flags '(:renderer-accelerated))
+          (sdl2:with-event-loop (:method :poll)
+            (:keyup
+             (:keysym keysym)
+             (when (sdl2:scancode= (sdl2:scancode-value keysym) :scancode-escape)
+               (sdl2:push-event :quit)))
+            (:idle
+             ()
+             (step-frame a)
+             (test-render-clear renderer)
+             (render-nes (NES-ppu:ppu-front (nes-ppu a)) renderer)
+             (sdl2:render-present renderer))
+             (:quit () t)))))))
