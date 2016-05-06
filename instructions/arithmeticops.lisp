@@ -11,7 +11,7 @@
     (set-zn c (cpu-accumulator c))
   (format
    nil
-   "ORA with mode ~a~@[ from 0x~x~] that holds value ~x. Produces value ~x"
+   "ORA with mode ~a~@[ from 0x~x~] that holds value 0x~x. Produces value 0x~x"
    mode (when (not (equal mode :immediate)) addr) val (cpu-accumulator c))))
 
 (defun anda (c inst)
@@ -25,19 +25,19 @@
     (set-zn c (cpu-accumulator c))
     (format
      nil
-     "ANDA with mode ~a~@[ from 0x~x~] that holds value ~x. Produces value ~x"
+     "ANDA with mode ~a~@[ from 0x~x~] that holds value 0x~x. Produces value 0x~x"
      mode (when (not (equal mode :immediate)) addr) val (cpu-accumulator c))))
 
-; (defun bit (c inst)
-;  "BIT: and value with accumulator, don't store."
-;  (let ((mode (instruction-addressing-mode inst))
-;        (val (get-value c inst))
-;        (addr (get-address c inst)))
-;    (set-zn c (logand val (cpu-accumulator c)))
-;    (format
-;     nil
-;     "BIT with mode ~a from address ~x that holds value ~x"
-;     mode addr val)))
+(defun bit-shadow (c inst)
+ "BIT: and value with accumulator, don't store."
+ (let ((mode (instruction-addressing-mode inst))
+       (val (get-value c inst))
+       (addr (get-address c inst)))
+   (set-zn c (logand val (cpu-accumulator c)))
+   (format
+    nil
+    "BIT with mode ~a from address 0x~x that holds value 0x~x"
+    mode addr val)))
 
 (defun cmp (c inst)
   (let ((mode (instruction-addressing-mode inst))
@@ -49,7 +49,7 @@
      (>= (cpu-accumulator c) val))
     (format
      nil
-     "CMP with mode ~a~@[ from 0x~x~] that holds value ~x"
+     "CMP with mode ~a~@[ from 0x~x~] that holds value 0x~x"
      mode (when (not (equal mode :immediate)) addr) val)))
 
 (defun cpy (c inst)
@@ -62,7 +62,7 @@
     (>= (cpu-y c) val))
    (format
     nil
-    "CPY with mode ~a~@[ from 0x~x~] that holds value ~x"
+    "CPY with mode ~a~@[ from 0x~x~] that holds value 0x~x"
     mode (when (not (equal mode :immediate)) addr) val)))
 
 (defun cpx (c inst)
@@ -75,7 +75,7 @@
      (>= (cpu-x c) val))
     (format
      nil
-     "CPX with mode ~a~@[ from 0x~x~] that holds value ~x"
+     "CPX with mode ~a~@[ from 0x~x~] that holds value 0x~x"
      mode (when (not (equal mode :immediate)) addr) val)))
 
 (defun dey (c inst)
@@ -87,7 +87,7 @@
   (set-zn c (wrap-byte (cpu-y c)))
   (format
    nil
-   "DEY. Decremented cpu-y to ~x"
+   "DEY. Decremented cpu-y to 0x~x"
    (cpu-y c)))
 
 (defun dex (c inst)
@@ -99,7 +99,7 @@
   (set-zn c (wrap-byte (cpu-x c)))
   (format
    nil
-   "DEX. Decremented cpu-x to ~x"
+   "DEX. Decremented cpu-x to 0x~x"
    (cpu-x c)))
 
 (defun inc (c inst)
@@ -108,7 +108,7 @@
    (set-zn c (write-cpu c addr (wrap-byte (1+ val))))
    (format
     nil
-    "INC, now holds ~x." (wrap-byte (1+ val)))))
+    "INC, now holds 0x~x." (wrap-byte (1+ val)))))
 
 (defun iny (c inst)
   (declare (ignore inst))
@@ -119,4 +119,4 @@
     (wrap-byte (1+ (cpu-y c)))))
   (format
    nil
-   "INY, now holds ~x." (cpu-y c)))
+   "INY, now holds 0x~x." (cpu-y c)))
