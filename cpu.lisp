@@ -73,7 +73,7 @@
 
 (defstruct cpu
   "A model 6502"
-  (cycles 0 :type (unsigned-byte 16))
+  (cycles 0)
   (accumulator 0 :type (unsigned-byte 8))
   (x 0 :type (unsigned-byte 8))
   (y 0 :type (unsigned-byte 8))
@@ -471,7 +471,8 @@
         (instruction (gethash (instruction-opcode inst) instructions)))
     (if (not (null instruction))
       (print (funcall instruction c inst))
-      (print (format nil "Uknown instruction... ~a" inst)))
+      (loop
+      (print (format nil "Uknown instruction... ~a" inst))))
     (incf (cpu-cycles c) cycles)
     cycles))
 
@@ -485,7 +486,7 @@
 (defun irq (c)
   (push16 c (cpu-pc c))
   (php c)
-  (setf (cpu-pc c) (read-cpu c #xFFFA))
+  (setf (cpu-pc c) (read-cpu c #xFFFE))
   (setf (flags-interrupt (cpu-sr c)) T)
   (incf (cpu-cycles c) 7))
 
