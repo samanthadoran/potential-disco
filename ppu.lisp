@@ -12,7 +12,7 @@
   (:export #:step-ppu #:make-ppu #:reset-ppu #:read-register #:write-register
            #:ppu-trigger-nmi-callback #:ppu-front #:ppu-back #:ppu-frame
            #:color-r #:color-g #:color-b #:read-palette #:write-palette
-           #:ppu-memory-get #:ppu-memory-set))
+           #:ppu-memory-get #:ppu-memory-set #:ppu-name-table-data))
 
 (in-package :NES-ppu)
 
@@ -140,9 +140,9 @@
 (defun read-ppu (p addr)
   (cond
     ;Mapper
-    ((< addr #x2000) (progn (print "Reads to mapper unimplemented") 0));(funcall (aref (ppu-memory-get p) 0) addr))
+    ((< addr #x2000) (funcall (aref (ppu-memory-get p) 0) addr))
     ;Name table data
-    ((< addr #x3F00) (progn (print "Reads to name-table-data unimplemented") 0));(funcall (aref (ppu-memory-get p) 1) addr))
+    ((< addr #x3F00) (funcall (aref (ppu-memory-get p) 1) addr))
     ;Palette data
     ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
     ;Default case
@@ -151,7 +151,7 @@
 (defun write-ppu (p addr val)
   (cond
     ;Mapper
-    ((< addr #x2000) (progn (print "Writes to mapper unimplemented") 0));(funcall (aref (ppu-memory-set p) 0) addr val))
+    ((< addr #x2000) (funcall (aref (ppu-memory-set p) 0) addr val))
     ;Name table data
     ((< addr #x3F00) (progn (print "Writes to name-table-data unimplemented") 0));(funcall (aref (ppu-memory-set p) 1) addr val))
     ;Palette data
@@ -205,9 +205,11 @@
     #x7FFF
     (logior
      (logand (ppu-tv p) #xF3FF)
-     (ash (logand value 3) -10)))))
+     (ash (logand value 3) 10)))))
 
 (defun write-mask (p value)
+  (when (not (= value 0))
+    (print (format nil "Val is: 0x~x" value)))
   (setf
    (ppu-flag-grayscale p)
    (logand (ash value 0) 1))
@@ -369,6 +371,7 @@
 
 ;TODO: Implement
 (defun write-dma (p value)
+
   (declare (ignore p value)))
 ; // $4014: OAMDMA
 ; func (ppu *PPU) writeDMA(value byte) {
@@ -487,14 +490,14 @@
        2)))))
 
 (defun fetch-low-tile (p)
-  (let* ((fine-y (logand 7 (ash (ppu-v p) -7)))
+  (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
          (table (ppu-flag-name-table p))
          (tile (ppu-name-table p))
          (address (+ (* #x1000 (wrap-word table)) (* 16 (wrap-word tile)) fine-y)))
     (setf (ppu-high-tile p) (read-ppu p (wrap-word address)))))
 
 (defun fetch-high-tile (p)
-  (let* ((fine-y (logand 7 (ash (ppu-v p) -7)))
+  (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
          (table (ppu-flag-name-table p))
          (tile (ppu-name-table p))
          (address (+ (* #x1000 (wrap-word table)) (* 16 (wrap-word tile)) fine-y)))
@@ -562,7 +565,7 @@
                   #x0F
                   (ash
                    (aref (ppu-sprite-patterns p) i)
-                   (wrap-byte (* offset 4)))))))
+                   (* -1 (wrap-byte (* offset 4))))))))
            (when (not (= (mod color 4) 0))
              (return-from sprite-pixel (list (wrap-byte i) color))))))))
   (return-from sprite-pixel (list 0 0)))
@@ -592,13 +595,14 @@
            (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
              (setf color background)))))
+       (when (not (= color 0)) (print "Yay!"))
        (setf (aref (ppu-back p) y x) (aref *palette* (read-palette p (mod color 64))))))))
 
 (defun fetch-sprite-pattern (p i r)
   (let* ((tile (aref (ppu-oam-data p) (1+ (* i 4))))
         (attributes (aref (ppu-oam-data p) (+ 2 (* i 4))))
         (address #x0000)
-        (a (ash (logand attributes 3) -2))
+        (a (ash (logand attributes 3) 2))
         (row r))
     (if (= (ppu-flag-sprite-size p) 0)
       (progn
@@ -643,7 +647,7 @@
              (setf p2 (ash (logand high-tile #x80) -6))
              (setf low-tile (ash low-tile 1))
              (setf high-tile (ash high-tile 1))))
-          (setf data (logand #xFFFFFFFF (ash data -4)))
+          (setf data (logand #xFFFFFFFF (ash data 4)))
           (setf data (logior data a p1 p2))))
       data)))
 
@@ -704,16 +708,12 @@
     (when (and (= (ppu-nmi-delay p) 0) (ppu-nmi-output p) (ppu-nmi-occurred p))
       (funcall (ppu-trigger-nmi-callback p))))
   (when
-    (not
-     (=
-      0
-      (ppu-flag-show-background p)
-      (ppu-flag-show-sprites p)))
-    (when
-      (and
-       (= (ppu-f p) 0)
-       (= (ppu-scanline p) 261)
-       (= (ppu-cycle p) 339))
+    (or (not (= 0 (ppu-flag-show-background p))) (not (= 0 (ppu-flag-show-sprites p))))
+    (when (and
+           (= (ppu-f p) 1)
+           (= (ppu-scanline p) 261)
+           (= (ppu-cycle p) 339))
+      ;(loop (print "We went through a frame"))
       (setf (ppu-cycle p) 0)
       (setf (ppu-scanline p) 0)
       (incf (ppu-frame p))
@@ -737,12 +737,7 @@
   (let* (
          (cycle (ppu-cycle p))
          (scanline (ppu-scanline p))
-         (rendering-enabled
-          (not
-           (=
-            0
-            (ppu-flag-show-background p)
-            (ppu-flag-show-sprites p))))
+         (rendering-enabled (or (not (= 0 (ppu-flag-show-background p))) (not (= 0 (ppu-flag-show-sprites p)))))
          (pre-line (= scanline 261))
          (visible-line (< scanline 240))
          (render-line (or pre-line visible-line))
@@ -750,6 +745,7 @@
          (visible-cycle (and (>= cycle 1) (<= cycle 256)))
          (fetch-cycle (or pre-fetch-cycle visible-cycle)))
     (when rendering-enabled
+      ;(loop (print "Rendering is enabled."))
       ;Begin background logic
       (when (and visible-line visible-cycle)
         (render-pixel p))
@@ -761,7 +757,7 @@
          ;Make sure it continues to fit in 64 bits
          (logand
           #xFFFFFFFFFFFFFFFF
-          (ash (ppu-tile-data p) -4)))
+          (ash (ppu-tile-data p) 4)))
         ;Dependingon what cycle we are in act accordingly
         (cond
           ((= (mod cycle 8) 0) (store-tile-data p))

@@ -4,7 +4,7 @@
   "JSR: jump subroutine"
   (let ((mode (instruction-addressing-mode inst))
         (addr (get-address c inst)))
-    (push16 c (cpu-pc c))
+    (push16 c (wrap-word (- (cpu-pc c) 1)))
     (setf
      (cpu-pc c)
      addr)
@@ -28,7 +28,7 @@
        (progn
         (let* ((addr-base (make-word-from-bytes hi lo))
                (lo-buggy (read-cpu c addr-base))
-               (hi-buggy (read-cpu c (logand #xFF00 addr-base))))
+               (hi-buggy (read-cpu c (1+ (logand #xFF00 addr-base)))))
           (make-word-from-bytes hi-buggy lo-buggy)))
        (get-address c inst)))
     (format
@@ -40,7 +40,7 @@
   (declare (ignore inst))
   (setf
    (cpu-pc c)
-   (pull16 c))
+   (wrap-word (1+ (pull16 c))))
   (format
    nil
    "RTS to ~x." (cpu-pc c)))

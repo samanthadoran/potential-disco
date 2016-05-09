@@ -179,7 +179,7 @@
     ;PRG RAM
     ((and (<= addr #x7FFF) (>= addr #x6000))
      (funcall (aref (cpu-memory-set c) 2) addr val))
-    (T (format t "We really can't write to ~a" addr))))
+    (T (format t "We really can't write to 0~x" addr))))
 
 (defun reset (c)
   "Reset state of cpu"
@@ -471,8 +471,7 @@
         (instruction (gethash (instruction-opcode inst) instructions)))
     (if (not (null instruction))
       (print (funcall instruction c inst))
-      (loop
-      (print (format nil "Uknown instruction... ~a" inst))))
+      (progn (print (format nil "Uknown instruction PC: 0x~x... ~a" (cpu-pc c) inst)) (sb-ext:exit)))
     (incf (cpu-cycles c) cycles)
     cycles))
 
@@ -492,6 +491,10 @@
 
 (defun step-cpu (c)
   "Steps the cpu through an instruction, returns the number of cycles it took."
+  (case (cpu-interrupt c)
+    (:none 0)
+    (:irq (irq c))
+    (:nmi (nmi c)))
   (let ((inst (decode (fetch c))))
     ;Remember to step the pc before execution.
     (step-pc c inst)

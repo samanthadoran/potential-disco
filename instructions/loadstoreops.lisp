@@ -84,12 +84,13 @@
    "TXS changed cpu-sp to 0x~x" (cpu-sp c)))
 
 (defun php (c)
-  (push-stack c (make-byte-from-flags (cpu-sr c)))
+  (push-stack c (logior #x10 (make-byte-from-flags (cpu-sr c))))
   (format
    nil
    "PHP pushed processor flags to the stack"))
 (defun plp (c)
-  (setf (cpu-sr c) (make-flags-from-byte (logand #xEF (pull-stack c))))
+  ;cpu.pull()&0xEF | 0x20
+  (setf (cpu-sr c) (make-flags-from-byte (logior #x20 (logand #xEF (pull-stack c)))))
   (format
    nil
    "PLP pulled processor flags from the stack"))
