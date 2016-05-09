@@ -1,8 +1,8 @@
 (asdf:defsystem #:console
   :components (
+               (:file "cpu")
                (:file "console"
 		             :depends-on ("cpu" "cartridge" "ppu"))
-               (:file "cpu")
                (:file "ppu")
                (:file "cartridge")
                (:file "instructions/arithmeticops")

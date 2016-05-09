@@ -4,7 +4,8 @@
   (:nicknames #:nes-cart)
   (:use :cl :cl-user)
   (:export #:load-cartridge #:make-cartridge #:cartridge-prg-rom
-           #:cartridge-prg-ram #:cartridge-chr-rom #:cartridge-chr-ram))
+           #:cartridge-prg-ram #:cartridge-chr-rom #:cartridge-chr-ram
+           #:cartridge-mirror))
 
 (in-package :NES-cartridge)
 (defconstant prg-size #x4000)
@@ -36,7 +37,8 @@
   (chr-ram 0)
   (chr-window 0 :type (unsigned-byte 8))
   (mapper-number 0)
-  (header 0))
+  (header 0)
+  (mirror))
 
 (defun load-header (seq)
   (make-ines-header
@@ -85,5 +87,10 @@
             (setf
              (cartridge-chr-rom cart)
              (subseq seq begin-chr end-chr)))
-          (setf (cartridge-header cart) header)))
+          (setf (cartridge-header cart) header)
+          (let ((mirror1 (logand (ines-header-flags6 header) 1))
+                (mirror2 (logand (ash (ines-header-flags6 header) -3) 1)))
+                (setf
+                 (cartridge-mirror cart)
+                 (logior mirror1 (ash mirror2 1))))))
     cart)))

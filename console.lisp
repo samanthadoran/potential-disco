@@ -19,6 +19,27 @@
   (cart (NES-cartridge:make-cartridge))
   (ppu (NES-ppu:make-ppu)))
 
+(defvar mirror-lookup (make-array '(4 4) :initial-contents '( (0 0 1 1) (0 1 0 1) (0 0 0 0) (0 1 2 3))))
+
+(defun mirror-address (mode addr)
+  (let* ((address (mod (- addr #x2000) #x1000))
+        (table (floor address #x0400))
+        (offset (mod address #x0400)))
+    (logand #xFFFF (+ #x2000 offset (* #x0400 (aref mirror-lookup mode table))))))
+
+(defun ppu-to-name-table-read (n)
+  (lambda (addr)
+          (aref
+           (NES-ppu:ppu-name-table-data (nes-ppu n))
+           (mod (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) 2048))))
+(defun ppu-to-name-table-write (n)
+  (lambda (addr val)
+          (setf
+           (aref
+            (NES-ppu:ppu-name-table-data (nes-ppu n))
+            (mod (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) 2048))
+          val)))
+
 (defun ppu-to-palette-read (n)
   (lambda (addr)
           (NES-ppu:read-palette (nes-ppu n) (mod addr 32))))
@@ -26,6 +47,20 @@
 (defun ppu-to-palette-write (n)
   (lambda (addr val)
           (NES-ppu:write-palette (nes-ppu n) (mod addr 32) val)))
+
+(defun ppu-to-mapper-read (n)
+  (lambda (addr)
+          (aref
+           (NES-cartridge:cartridge-chr-rom (nes-cart n))
+           addr)))
+
+(defun ppu-to-mapper-write (n)
+ (lambda (addr val)
+         (setf
+          (aref
+           (NES-cartridge:cartridge-chr-rom (nes-cart n))
+           addr)
+          val)))
 
 (defun cpu-to-cpu-read (n)
   (lambda (addr)
@@ -53,6 +88,16 @@
             addr
             (array-dimension (NES-cartridge:cartridge-prg-rom (nes-cart n)) 0)))))
 
+(defun cpu-to-cart-write (n)
+  (lambda (addr val)
+          (setf
+           (aref
+            (NES-cartridge:cartridge-prg-rom (nes-cart n))
+            (mod
+             addr
+             (array-dimension (NES-cartridge:cartridge-prg-rom (nes-cart n)) 0)))
+           val)))
+
 ;TODO: Implement the ppu.
 (defun cpu-to-ppu-read (n)
   (lambda (addr)
@@ -70,6 +115,18 @@
   (NES-ppu:reset-ppu (nes-ppu n))
   (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/smb.nes"))
   (setf (NES-ppu:ppu-trigger-nmi-callback (nes-ppu n)) (6502-cpu:trigger-nmi-callback (nes-cpu n)))
+  (setf
+   (aref (NES-ppu:ppu-memory-get (nes-ppu n)) 0)
+   (ppu-to-mapper-read n))
+  (setf
+   (aref (NES-ppu:ppu-memory-set (nes-ppu n)) 0)
+   (ppu-to-mapper-write n))
+  (setf
+   (aref (NES-ppu:ppu-memory-get (nes-ppu n)) 1)
+   (ppu-to-name-table-read n))
+  (setf
+   (aref (NES-ppu:ppu-memory-set (nes-ppu n)) 1)
+   (ppu-to-name-table-write n))
   (setf
    (aref (NES-ppu:ppu-memory-get (nes-ppu n)) 2)
    (ppu-to-palette-read n))
