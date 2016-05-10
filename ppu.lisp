@@ -36,6 +36,14 @@
 (defun wrap-word (val)
   (logand #xFFFF val))
 
+(defun to-signed-byte-8 (val)
+  (if (= (ldb (byte 1 7) val) 1)
+    (*
+     -1
+     (wrap-byte
+      (1+ (lognot val))))
+    (logand #x7f val)))
+
 (defvar
   *palette*
   (progn
@@ -140,24 +148,26 @@
   (oam-dma-callback 0))
 
 (defun read-ppu (p addr)
+  (setf addr (mod addr #x4000))
   (cond
     ;Mapper
-    ((< (mod addr #x4000) #x2000) (funcall (aref (ppu-memory-get p) 0) addr))
+    ((< addr #x2000) (funcall (aref (ppu-memory-get p) 0) addr))
     ;Name table data
-    ((< (mod addr #x4000) #x3F00) (funcall (aref (ppu-memory-get p) 1) addr))
+    ((< addr #x3F00) (funcall (aref (ppu-memory-get p) 1) addr))
     ;Palette data
-    ((< (mod addr #x4000) #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
+    ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
     ;Default case
     (T (progn (format t "Cannot read from ~x" (mod addr #x4000)) 0))))
 
 (defun write-ppu (p addr val)
+  (setf addr (mod addr #x4000))
   (cond
     ;Mapper
-    ((< (mod addr #x4000) #x2000) (funcall (aref (ppu-memory-set p) 0) addr val))
+    ((< addr #x2000) (funcall (aref (ppu-memory-set p) 0) addr val))
     ;Name table data
-    ((< (mod addr #x4000) #x3F00) (funcall (aref (ppu-memory-set p) 1) addr val))
+    ((< addr #x3F00) (funcall (aref (ppu-memory-set p) 1) addr val))
     ;Palette data
-    ((< (mod addr #x4000) #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
+    ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
     ;Default case
     (T 0)));(progn (format t "Cannot write to ~x" addr) 0))))
 
@@ -337,7 +347,7 @@
 
 
 (defun read-data (p)
-  (let ((value (read-ppu p (ppu-v p))))
+  (let ((value (read-ppu p (wrap-word (ppu-v p)))))
     (if (< (mod (ppu-v p) #x4000) #x3F00)
       (progn
        (let ((buffered (ppu-buffered-data p)))
@@ -349,7 +359,7 @@
           buffered)))
       (setf
        (ppu-buffered-data p)
-       (read-ppu p (- (ppu-v p) #x1000))))
+       (read-ppu p (wrap-word (- (ppu-v p) #x1000)))))
     (setf
      (ppu-v p)
      (wrap-word
@@ -554,7 +564,7 @@
   (loop for i from 0 to (- (ppu-sprite-count p) 1)
     do
     (progn
-     (let ((offset (- (- (ppu-cycle p) 1) (aref (ppu-sprite-positions p) i))))
+     (let ((offset (- (- (ppu-cycle p) 1) (to-signed-byte-8 (aref (ppu-sprite-positions p) i)))))
        (when (= (ppu-flag-show-sprites p) 0)
          (return-from sprite-pixel (list 0 0)))
        (when (and (>= offset 0) (<= offset 7))
@@ -592,6 +602,7 @@
          (T
           (progn
            (when (and (< x 255) (= (aref (ppu-sprite-indexes p) i) 0))
+             ;(print "Setting sprite zero hit?")
              (setf (ppu-flag-sprite-zero-hit p) 1))
            (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
@@ -664,7 +675,7 @@
        (let* ((y (aref (ppu-oam-data p) (* i 4)))
              (a (aref (ppu-oam-data p) (+ 2 (* i 4))))
              (x (aref (ppu-oam-data p) (+ 3 (* i 4))))
-             (row (- (ppu-scanline p) y)))
+             (row (- (ppu-scanline p) (to-signed-byte-8 y))))
          (when (and (>= row 0) (< row h))
            (when (< count 8)
              (setf

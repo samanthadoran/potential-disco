@@ -19,7 +19,7 @@
   (cart (NES-cartridge:make-cartridge))
   (ppu (NES-ppu:make-ppu)))
 
-(defvar mirror-lookup (make-array '(4 4) :initial-contents '( (0 0 1 1) (0 1 0 1) (0 0 0 0) (0 1 2 3))))
+(defvar mirror-lookup (make-array '(5 4) :initial-contents '( (0 0 1 1) (0 1 0 1) (0 0 0 0) (1 1 1 1) (0 1 2 3))))
 
 (defun mirror-address (mode addr)
   (let* ((address (mod (- addr #x2000) #x1000))
@@ -99,7 +99,6 @@
              (array-dimension (NES-cartridge:cartridge-prg-rom (nes-cart n)) 0)))
            val)))
 
-;TODO: Implement the ppu.
 (defun cpu-to-ppu-read (n)
   (lambda (addr)
           ;If oam, don't mod the address
@@ -114,8 +113,9 @@
 
 (defun console-on (n)
   (NES-ppu:reset-ppu (nes-ppu n))
-  (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/smb.nes"))
+  (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/dk.nes"))
   (setf (NES-ppu:ppu-trigger-nmi-callback (nes-ppu n)) (6502-cpu:trigger-nmi-callback (nes-cpu n)))
+  (setf (NES-ppu:ppu-oam-dma-callback (nes-ppu n)) (lambda (addr) (6502-cpu:read-cpu (nes-cpu n) addr)))
   (setf
    (aref (NES-ppu:ppu-memory-get (nes-ppu n)) 0)
    (ppu-to-mapper-read n))
@@ -203,4 +203,4 @@
              (test-render-clear renderer)
              (render-nes (NES-ppu:ppu-front (nes-ppu a)) renderer)
              (sdl2:render-present renderer))
-             (:quit () t)))))))
+            (:quit () t)))))))

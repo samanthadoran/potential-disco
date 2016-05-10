@@ -8,7 +8,7 @@
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
            #:wrap-byte #:step-cpu #:decode #:execute #:make-instruction
            #:cpu-memory-get #:cpu-memory-set #:ora #:to-signed-byte-8
-           #:trigger-nmi-callback #:trigger-irq-callback))
+           #:trigger-nmi-callback #:trigger-irq-callback #:read-cpu))
 
 (in-package :6502-cpu)
 
