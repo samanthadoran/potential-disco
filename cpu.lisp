@@ -161,9 +161,9 @@
     ;PPU
     ((<= addr #x3FFF) (funcall (aref (cpu-memory-get c) 1) addr))
     ;APU and IO Registers
-    ((<= addr #x401F) (funcall (aref (cpu-memory-get c) 2) addr))
+    ((<= addr #x401F) (funcall (aref (cpu-memory-get c) 1) addr)); THIS IS WRONG, CHANGE IT LATER
     ;Mapper Registers
-    ((<= addr #x5FFF) (funcall (aref (cpu-memory-get c) 3) addr))
+    ((<= addr #x5FFF) 0);(funcall (aref (cpu-memory-get c) 3) addr))
     ;PRG RAM
     ((<= addr #x7FFF) (funcall (aref (cpu-memory-get c) 4) addr))
     ;PRG ROM
@@ -179,7 +179,7 @@
     ;PRG RAM
     ((and (<= addr #x7FFF) (>= addr #x6000))
      (funcall (aref (cpu-memory-set c) 2) addr val))
-    (T (format t "We really can't write to 0~x" addr))))
+    (T 0)));(format t "We really can't write to 0~x" addr))))
 
 (defun reset (c)
   "Reset state of cpu"
@@ -313,23 +313,45 @@
          (cpu-y c))))
       ;Get the address contained at lo-byte + x
       ((equal mode :indexed-indirect)
-       (read-cpu
-        c
-        (wrap-byte
-         (+ lo-byte (cpu-x c)))))
+       (if (= lo-byte #xFF)
+         (progn
+          (make-word-from-bytes
+           (read-cpu c #x00)
+           (read-cpu c #xFF)))
+         (progn
+          (make-word-from-bytes
+           (read-cpu
+            c
+            (wrap-byte
+             (+ 1 lo-byte (cpu-x c))))
+           (read-cpu
+            c
+            (wrap-byte
+             (+ lo-byte (cpu-x c))))))))
       ;Get the address containted at lo-byte + y
       ((equal mode :indirect-indexed)
-       (wrap-byte
-        (+
-         (read-cpu c lo-byte)
-         (cpu-y c))))
+       (if (= lo-byte #xFF)
+         (progn
+          (+
+           (cpu-y c)
+           (make-word-from-bytes
+            (read-cpu c #x00)
+            (read-cpu c #xFF))))
+         (progn
+          (+
+           (cpu-y c)
+           (make-word-from-bytes
+            (read-cpu c (+ 1 lo-byte))
+            (read-cpu c lo-byte))))))
       (T 0))))
 
 (defun get-value (c inst)
   "Get the value from an instruction"
   (if (equal :immediate (instruction-addressing-mode inst))
     (instruction-lo-byte inst)
-    (read-cpu c (get-address c inst))))
+    (if (equal :accumulator (instruction-addressing-mode inst))
+      (cpu-accumulator c)
+      (read-cpu c (get-address c inst)))))
 
 (defun fetch (c)
   "Fetch the next instruction from memory"
@@ -383,6 +405,11 @@
      (addressing-mode (determine-addressing-mode opcode)))
     ;If it is a special case, modify
     (cond
+      ;Jump Absolute
+      ((= opcode #x4C)
+       (progn
+        (setf addressing-mode :absolute)
+        (setf masked-opcode opcode)))
       ((member
         opcode
         '(#x10 #x30 #x50 #x70 #x90 #xB0 #xD0 #xF0))
@@ -470,22 +497,24 @@
   (let ((cycles (instruction-cycles c inst))
         (instruction (gethash (instruction-opcode inst) instructions)))
     (if (not (null instruction))
-      (print (funcall instruction c inst))
-      (progn (print (format nil "Uknown instruction PC: 0x~x... ~a" (cpu-pc c) inst)) (sb-ext:exit)))
+      ;(print (funcall instruction c inst))
+      (funcall instruction c inst)
+      (progn (print (format nil "Uknown instruction PC: 0x~x Unmasked-opcode 0x~x masked 0x~x" (cpu-pc c) (instruction-unmasked-opcode inst) (instruction-opcode inst))) (sb-ext:exit)))
     (incf (cpu-cycles c) cycles)
     cycles))
 
 (defun nmi (c)
+  ;(sb-ext:exit)
   (push16 c (cpu-pc c))
-  (php c)
-  (setf (cpu-pc c) (read-cpu c #xFFFA))
+  (php c nil)
+  (setf (cpu-pc c) (make-word-from-bytes (read-cpu c #xFFFB) (read-cpu c #xFFFA)))
   (setf (flags-interrupt (cpu-sr c)) T)
   (incf (cpu-cycles c) 7))
 
 (defun irq (c)
   (push16 c (cpu-pc c))
-  (php c)
-  (setf (cpu-pc c) (read-cpu c #xFFFE))
+  (php c nil)
+  (setf (cpu-pc c) (make-word-from-bytes (read-cpu c #xFFFF) (read-cpu c #xFFFE)))
   (setf (flags-interrupt (cpu-sr c)) T)
   (incf (cpu-cycles c) 7))
 
@@ -495,6 +524,7 @@
     (:none 0)
     (:irq (irq c))
     (:nmi (nmi c)))
+  (setf (cpu-interrupt c) :none)
   (let ((inst (decode (fetch c))))
     ;Remember to step the pc before execution.
     (step-pc c inst)
