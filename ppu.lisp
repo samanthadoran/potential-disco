@@ -33,7 +33,7 @@
   (logand #xFF val))
 
 (defun wrap-word (val)
-  (logand #xFFFF val))
+  (logand #x7FFF val))
 
 (defvar
   *palette*
@@ -153,11 +153,11 @@
     ;Mapper
     ((< addr #x2000) (funcall (aref (ppu-memory-set p) 0) addr val))
     ;Name table data
-    ((< addr #x3F00) (progn (print "Writes to name-table-data unimplemented") 0));(funcall (aref (ppu-memory-set p) 1) addr val))
+    ((< addr #x3F00) (funcall (aref (ppu-memory-set p) 1) addr val))
     ;Palette data
     ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
     ;Default case
-    (T (progn (format t "Cannot write to ~x" addr) 0))))
+    (T 0)));(progn (format t "Cannot write to ~x" addr) 0))))
 
 (defun read-palette (p address)
   (aref
@@ -208,8 +208,6 @@
      (ash (logand value 3) 10)))))
 
 (defun write-mask (p value)
-  (when (not (= value 0))
-    (print (format nil "Val is: 0x~x" value)))
   (setf
    (ppu-flag-grayscale p)
    (logand (ash value 0) 1))
@@ -420,7 +418,7 @@
     ((= selector 7) (write-data p value))
     ;Write DMA
     ((= selector #x4014) (write-dma p value))
-    (T (format t "We really can't write to register ~x" selector))))
+    (T 0)));(format t "We really can't write to register ~x" selector))))
 
 (defun increment-x (p)
   (if (= (logand (ppu-v p) #x001F) 31)
@@ -595,7 +593,6 @@
            (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
              (setf color background)))))
-       (when (not (= color 0)) (print "Yay!"))
        (setf (aref (ppu-back p) y x) (aref *palette* (read-palette p (mod color 64))))))))
 
 (defun fetch-sprite-pattern (p i r)
@@ -658,7 +655,7 @@
            8
            16))
         (count 0))
-    (loop for i from 0 to 64
+    (loop for i from 0 to 63
       do
       (progn
        (let* ((y (aref (ppu-oam-data p) (* i 4)))
