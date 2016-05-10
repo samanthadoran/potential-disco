@@ -176,7 +176,7 @@
     do
     (loop for x from 0 to (- (array-dimension front 1) 1)
       do
-      (sdl2:with-points ((p y x))
+      (sdl2:with-points ((p x y))
         (let* ((color (aref front y x))
                (r (color-r color))
                (g (color-g color))
