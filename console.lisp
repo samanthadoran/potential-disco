@@ -32,13 +32,14 @@
           (aref
            (NES-ppu:ppu-name-table-data (nes-ppu n))
            (mod (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) 2048))))
+
 (defun ppu-to-name-table-write (n)
   (lambda (addr val)
           (setf
            (aref
             (NES-ppu:ppu-name-table-data (nes-ppu n))
             (mod (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) 2048))
-          val)))
+           val)))
 
 (defun ppu-to-palette-read (n)
   (lambda (addr)
