@@ -140,22 +140,22 @@
 (defun read-ppu (p addr)
   (cond
     ;Mapper
-    ((< addr #x2000) (funcall (aref (ppu-memory-get p) 0) addr))
+    ((< (mod addr #x4000) #x2000) (funcall (aref (ppu-memory-get p) 0) addr))
     ;Name table data
-    ((< addr #x3F00) (funcall (aref (ppu-memory-get p) 1) addr))
+    ((< (mod addr #x4000) #x3F00) (funcall (aref (ppu-memory-get p) 1) addr))
     ;Palette data
-    ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
+    ((< (mod addr #x4000) #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
     ;Default case
-    (T (progn (format t "Cannot read from ~x" addr) 0))))
+    (T (progn (format t "Cannot read from ~x" (mod addr #x4000)) 0))))
 
 (defun write-ppu (p addr val)
   (cond
     ;Mapper
-    ((< addr #x2000) (funcall (aref (ppu-memory-set p) 0) addr val))
+    ((< (mod addr #x4000) #x2000) (funcall (aref (ppu-memory-set p) 0) addr val))
     ;Name table data
-    ((< addr #x3F00) (funcall (aref (ppu-memory-set p) 1) addr val))
+    ((< (mod addr #x4000) #x3F00) (funcall (aref (ppu-memory-set p) 1) addr val))
     ;Palette data
-    ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
+    ((< (mod addr #x4000) #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
     ;Default case
     (T 0)));(progn (format t "Cannot write to ~x" addr) 0))))
 
@@ -284,11 +284,12 @@
     (progn
      (setf
       (ppu-tv p)
+      (wrap-word
       (logior
        (logand
         (ppu-tv p)
         #xFFE0)
-       (ash value -3)))
+       (ash value -3))))
      (setf
       (ppu-x p)
       (logand value #x07))
@@ -298,16 +299,18 @@
     (progn
      (setf
       (ppu-tv p)
+      (wrap-word
       (logior
        (logand
         (ppu-tv p)
         #x8FFF)
-       (ash (logand value #x07) 12)))
+       (ash (logand value #x07) 12))))
      (setf
       (ppu-tv p)
+      (wrap-word
       (logior
        (logand (ppu-tv p) #xFC1F)
-       (ash (logand value #xF8) 2)))
+       (ash (logand value #xF8) 2))))
      (setf
       (ppu-w p)
       0))))
@@ -317,9 +320,10 @@
     (progn
      (setf
       (ppu-tv p)
+      (wrap-word
       (logior
        (logand (ppu-tv p) #x80FF)
-       (ash (logand value #x3F) 8)))
+       (ash (logand value #x3F) 8))))
      (setf (ppu-w p) 1))
     (progn
      (setf
@@ -327,7 +331,7 @@
       (logior
        (logand (ppu-tv p) #xFF00)
        value))
-     (setf (ppu-tv p) (ppu-tv p))
+     (setf (ppu-v p) (ppu-tv p))
      (setf (ppu-w p) 0))))
 
 
@@ -422,12 +426,12 @@
 
 (defun increment-x (p)
   (if (= (logand (ppu-v p) #x001F) 31)
-    (setf (ppu-v p) (logxor #x0400 (logand (ppu-v p) #xFFE0))))
+    (setf (ppu-v p) (wrap-word (logxor #x0400 (logand (ppu-v p) #xFFE0)))))
     (setf (ppu-v p) (wrap-word (1+ (ppu-v p)))))
 
 (defun increment-y (p)
   (if (not (= (logand (ppu-v p) #x7000) #x7000))
-    (setf (ppu-v p) (+ #x1000 (ppu-v p)))
+    (setf (ppu-v p) (wrap-word (+ #x1000 (ppu-v p))))
     (progn
      (setf (ppu-v p) (logand (ppu-v p) #x8FFF))
      (let ((y (ash (logand (ppu-v p) #x03E0) -5)))
@@ -491,7 +495,7 @@
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
          (table (ppu-flag-name-table p))
          (tile (ppu-name-table p))
-         (address (+ (* #x1000 (wrap-word table)) (* 16 (wrap-word tile)) fine-y)))
+         (address (+ (wrap-word (* #x1000 (wrap-word table))) (* 16 (wrap-word tile)) fine-y)))
     (setf (ppu-high-tile p) (read-ppu p (wrap-word address)))))
 
 (defun fetch-high-tile (p)
@@ -636,14 +640,14 @@
           (if (= (logand attributes #x40) #x40)
             (progn
              (setf p1 (logand low-tile 1))
-             (setf p2 (ash (logand high-tile 1) 1))
-             (setf low-tile (ash low-tile -1))
-             (setf high-tile (ash high-tile -1)))
+             (setf p2 (wrap-byte (ash (logand high-tile 1) 1)))
+             (setf low-tile (wrap-byte (ash low-tile -1)))
+             (setf high-tile (wrap-byte (ash high-tile -1))))
             (progn
-             (setf p1 (ash (logand low-tile #x80) -7))
-             (setf p2 (ash (logand high-tile #x80) -6))
-             (setf low-tile (ash low-tile 1))
-             (setf high-tile (ash high-tile 1))))
+             (setf p1 (wrap-byte (ash (logand low-tile #x80) -7)))
+             (setf p2 (wrap-byte (ash (logand high-tile #x80) -6)))
+             (setf low-tile (wrap-byte (ash low-tile 1)))
+             (setf high-tile (wrap-byte (ash high-tile 1)))))
           (setf data (logand #xFFFFFFFF (ash data 4)))
           (setf data (logior data a p1 p2))))
       data)))
@@ -710,7 +714,6 @@
            (= (ppu-f p) 1)
            (= (ppu-scanline p) 261)
            (= (ppu-cycle p) 339))
-      ;(loop (print "We went through a frame"))
       (setf (ppu-cycle p) 0)
       (setf (ppu-scanline p) 0)
       (incf (ppu-frame p))
