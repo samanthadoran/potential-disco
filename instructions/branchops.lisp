@@ -1,5 +1,26 @@
 (in-package :6502-cpu)
 
+(defun brk (c inst)
+  "BRK: cause nmi"
+  (declare (ignore inst))
+  ;(setf (cpu-interrupt c) :irq)
+  ;(sei c nil)
+  (push16 c (wrap-word (1+ (cpu-pc c))))
+  (php c nil)
+  (sei c nil)
+  (setf (cpu-pc c) (make-word-from-bytes (read-cpu c #xFFFF) (read-cpu c #xFFFE)))
+  (format nil "BRK causing nmi"))
+
+(defun rti (c inst)
+  "Return from interrupt"
+  (declare (ignore inst))
+  (setf
+   (cpu-sr c)
+   (make-flags-from-byte (logior #x20 (logand (pull-stack c) #xEF))))
+  (setf
+   (cpu-pc c)
+   (pull16 c)))
+
 (defun jsr (c inst)
   "JSR: jump subroutine"
   (let ((mode (instruction-addressing-mode inst))
@@ -21,7 +42,8 @@
 
 (defun jmp-indirect (c inst)
   (let ((hi (instruction-hi-byte inst))
-        (lo (instruction-lo-byte inst)))
+        (lo (instruction-lo-byte inst))
+        (old-pc (cpu-pc c)))
     (setf
      (cpu-pc c)
      (if (= (logand lo #xFF) #xFF)
@@ -33,8 +55,8 @@
        (get-address c inst)))
     (format
      nil
-     "JMP indirect from ~x to ~x"
-     (make-word-from-bytes hi lo) (cpu-pc c))))
+     "JMP indirect from ~x to ~x, inst looks like ~x"
+     old-pc (cpu-pc c) inst)))
 
 (defun rts (c inst)
   (declare (ignore inst))
@@ -56,6 +78,17 @@
    nil
    "BPL pc is now 0x~x" (cpu-pc c)))
 
+(defun bmi (c inst)
+ (when (flags-negative (cpu-sr c))
+   ;Branch taken means increment cycles
+   (incf (cpu-cycles c))
+   (setf
+    (cpu-pc c)
+    (get-address c inst)))
+ (format
+  nil
+  "BMI pc is now 0x~x" (cpu-pc c)))
+
 (defun bcs (c inst)
  (when (flags-carry (cpu-sr c))
    ;Branch taken means increment cycles
@@ -67,6 +100,16 @@
   nil
   "BCS pc is now 0x~x" (cpu-pc c)))
 
+(defun bcc (c inst)
+  (when (not (flags-carry (cpu-sr c)))
+    (incf (cpu-cycles c))
+    (setf
+     (cpu-pc c)
+     (get-address c inst)))
+  (format
+   nil
+   "BCC pc is now 0x~x" (cpu-pc c)))
+
 (defun bne (c inst)
  (when (not (flags-zero (cpu-sr c)))
    ;Branch taken means increment cycles
@@ -77,3 +120,15 @@
  (format
   nil
   "BNE pc is now 0x~x" (cpu-pc c)))
+
+
+(defun beq (c inst)
+ (when (flags-zero (cpu-sr c))
+   ;Branch taken means increment cycles
+   (incf (cpu-cycles c))
+   (setf
+    (cpu-pc c)
+    (get-address c inst)))
+ (format
+  nil
+  "BEQ pc is now 0x~x" (cpu-pc c)))
