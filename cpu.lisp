@@ -504,7 +504,6 @@
     cycles))
 
 (defun nmi (c)
-  ;(sb-ext:exit)
   (push16 c (cpu-pc c))
   (php c nil)
   (setf (cpu-pc c) (make-word-from-bytes (read-cpu c #xFFFB) (read-cpu c #xFFFA)))

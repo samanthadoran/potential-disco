@@ -3,8 +3,6 @@
 (defun brk (c inst)
   "BRK: cause nmi"
   (declare (ignore inst))
-  ;(setf (cpu-interrupt c) :irq)
-  ;(sei c nil)
   (push16 c (wrap-word (1+ (cpu-pc c))))
   (php c nil)
   (sei c nil)
