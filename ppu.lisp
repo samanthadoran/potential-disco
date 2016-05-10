@@ -12,7 +12,8 @@
   (:export #:step-ppu #:make-ppu #:reset-ppu #:read-register #:write-register
            #:ppu-trigger-nmi-callback #:ppu-front #:ppu-back #:ppu-frame
            #:color-r #:color-g #:color-b #:read-palette #:write-palette
-           #:ppu-memory-get #:ppu-memory-set #:ppu-name-table-data))
+           #:ppu-memory-get #:ppu-memory-set #:ppu-name-table-data
+           #:ppu-oam-dma-callback))
 
 (in-package :NES-ppu)
 
@@ -33,7 +34,7 @@
   (logand #xFF val))
 
 (defun wrap-word (val)
-  (logand #x7FFF val))
+  (logand #xFFFF val))
 
 (defvar
   *palette*
@@ -135,7 +136,8 @@
   (oam-address 0 :type (unsigned-byte 8))
 
   ;Buffer for $2007 Data Read
-  (buffered-data 0 :type (unsigned-byte 8)))
+  (buffered-data 0 :type (unsigned-byte 8))
+  (oam-dma-callback 0))
 
 (defun read-ppu (p addr)
   (cond
@@ -201,8 +203,7 @@
   (setf
    (ppu-tv p)
    ;Keep it in 15 bits
-   (logand
-    #x7FFF
+   (wrap-word
     (logior
      (logand (ppu-tv p) #xF3FF)
      (ash (logand value 3) 10)))))
@@ -371,24 +372,22 @@
        1
        32)))))
 
-;TODO: Implement
 (defun write-dma (p value)
-
-  (declare (ignore p value)))
-; // $4014: OAMDMA
-; func (ppu *PPU) writeDMA(value byte) {
-; 	cpu := ppu.console.CPU
-; 	address := uint16(value) << 8
-; 	for i := 0; i < 256; i++ {
-; 		ppu.oamData[ppu.oamAddress] = cpu.Read(address)
-; 		ppu.oamAddress++
-; 		address++
-; 	}
-; 	cpu.stall += 513
-; 	if cpu.Cycles%2 == 1 {
-; 		cpu.stall++
-; 	}
-; }
+  (let ((address (wrap-word (ash value 8))))
+    (loop for i from 1 to 255
+      do
+      (progn
+       (setf
+        (aref
+         (ppu-oam-data p)
+         (ppu-oam-address p))
+        (funcall (ppu-oam-dma-callback p) address))
+       (setf
+        (ppu-oam-address p)
+        (wrap-byte (1+ (ppu-oam-address p))))
+       (setf
+        address
+        (wrap-word (1+ address)))))))
 
 (defun read-register (p selector)
   (cond
