@@ -34,7 +34,7 @@
   (logand #xFF val))
 
 (defun wrap-word (val)
-  (logand #xFFFF val))
+  (logand #x7FFF val))
 
 (defun to-signed-byte-8 (val)
   (if (= (ldb (byte 1 7) val) 1)
@@ -175,7 +175,7 @@
   (aref
    (ppu-palette-data p)
    (if (and (>= address 16) (= (mod address 4) 0))
-     (wrap-word (- address 16))
+     (logand #xFFFF (- address 16))
      address)))
 
 (defun write-palette (p address value)
@@ -183,7 +183,7 @@
    (aref
     (ppu-palette-data p)
     (if (and (>= address 16) (= (mod address 4) 0))
-      (wrap-word (- address 16))
+      (logand #xFFFF (- address 16))
       address))
    value))
 
@@ -502,16 +502,16 @@
 
 (defun fetch-low-tile (p)
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
-         (table (ppu-flag-name-table p))
+         (table (ppu-flag-background-table p))
          (tile (ppu-name-table p))
-         (address (+ (wrap-word (* #x1000 (wrap-word table))) (* 16 (wrap-word tile)) fine-y)))
+         (address (+ (logand #xFFFF (* #x1000 (logand #xFFFF table))) (* 16 (logand #xFFFF tile)) fine-y)))
     (setf (ppu-high-tile p) (read-ppu p (wrap-word address)))))
 
 (defun fetch-high-tile (p)
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
-         (table (ppu-flag-name-table p))
+         (table (ppu-flag-background-table p))
          (tile (ppu-name-table p))
-         (address (+ (* #x1000 (wrap-word table)) (* 16 (wrap-word tile)) fine-y)))
+         (address (+ (* #x1000 (logand #xFFFF table)) (* 16 (logand #xFFFF tile)) fine-y)))
     (setf (ppu-high-tile p) (read-ppu p (wrap-word (+ address 8))))))
 
 (defun store-tile-data (p)
@@ -607,7 +607,7 @@
            (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
              (setf color background)))))
-       (setf (aref (ppu-back p) y x) (aref *palette* (read-palette p (mod color 64))))))))
+       (setf (aref (ppu-back p) y x) (aref *palette* (mod (read-palette p (logand #xFFFF color)) 64)))))))
 
 (defun fetch-sprite-pattern (p i r)
   (let* ((tile (aref (ppu-oam-data p) (1+ (* i 4))))
@@ -623,9 +623,9 @@
          (setf
           address
           (+
-           (* #x1000 (wrap-word table))
-           (* 16 (wrap-word tile))
-           (wrap-word row)))))
+           (* #x1000 (logand #xFFFF table))
+           (* 16 (logand #xFFFF tile))
+           (logand #xFFFF row)))))
       (progn
        (when (= (logand attributes #x80) #x80)
          (setf row (- 15 row)))
@@ -637,9 +637,9 @@
          (setf
           address
           (+
-           (* #x1000 (wrap-word table))
-           (* (wrap-word tile) 16)
-           (wrap-word row))))))
+           (* #x1000 (logand #xFFFF table))
+           (* (logand #xFFFF tile) 16)
+           (logand #xFFFF row))))))
     (let ((low-tile (read-ppu p address))
           (high-tile (read-ppu p (wrap-word (+ address 8))))
           (data #x00000000))
