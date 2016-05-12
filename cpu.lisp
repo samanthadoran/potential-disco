@@ -8,7 +8,7 @@
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
            #:wrap-byte #:step-cpu #:decode #:execute #:make-instruction
            #:cpu-memory-get #:cpu-memory-set #:ora #:to-signed-byte-8
-           #:trigger-nmi-callback #:trigger-irq-callback #:read-cpu))
+           #:trigger-nmi-callback #:trigger-irq-callback #:read-cpu #:add-to-stall))
 
 (in-package :6502-cpu)
 
@@ -74,6 +74,7 @@
 (defstruct cpu
   "A model 6502"
   (cycles 0)
+  (stall 0)
   (accumulator 0 :type (unsigned-byte 8))
   (x 0 :type (unsigned-byte 8))
   (y 0 :type (unsigned-byte 8))
@@ -92,6 +93,11 @@
   (hi-byte 0 :type (unsigned-byte 8))
   (lo-byte 0 :type (unsigned-byte 8))
   (addressing-mode :implicit))
+
+(defun add-to-stall (c)
+  (lambda (to-add)
+          (incf (cpu-stall c) to-add)
+          (when (= (mod (cpu-cycles c) 2) 1) (incf (cpu-stall c)))))
 
 (defun trigger-nmi-callback (c)
   (lambda ()
@@ -163,7 +169,7 @@
     ;APU and IO Registers
     ((<= addr #x401F) (funcall (aref (cpu-memory-get c) 1) addr)); THIS IS WRONG, CHANGE IT LATER
     ;Mapper Registers
-    ((<= addr #x5FFF) 0);(funcall (aref (cpu-memory-get c) 3) addr))
+    ((<= addr #x5FFF) (progn (print "Reads from cpu to mapper unimplemented....") 0));(funcall (aref (cpu-memory-get c) 3) addr))
     ;PRG RAM
     ((<= addr #x7FFF) (funcall (aref (cpu-memory-get c) 4) addr))
     ;PRG ROM
@@ -179,7 +185,9 @@
     ;PRG RAM
     ((and (<= addr #x7FFF) (>= addr #x6000))
      (funcall (aref (cpu-memory-set c) 2) addr val))
-    (T 0)));(format t "We really can't write to 0~x" addr))))
+    ;Don't forget oam-dma
+    ((= addr #x4014) (funcall (aref (cpu-memory-set c) 1) addr val))
+    (T (progn (print (format nil "CPU: We really can't write to 0~x" addr))) 0)))
 
 (defun reset (c)
   "Reset state of cpu"
@@ -274,6 +282,7 @@
   (let ((mode (instruction-addressing-mode inst))
         (lo-byte (instruction-lo-byte inst))
         (hi-byte (instruction-hi-byte inst)))
+    (wrap-word
     (cond
       ;Somewhere in zero page...
       ((equal mode :zero-page) lo-byte)
@@ -343,7 +352,7 @@
            (make-word-from-bytes
             (read-cpu c (+ 1 lo-byte))
             (read-cpu c lo-byte))))))
-      (T 0))))
+      (T 0)))))
 
 (defun get-value (c inst)
   "Get the value from an instruction"
@@ -519,12 +528,17 @@
 
 (defun step-cpu (c)
   "Steps the cpu through an instruction, returns the number of cycles it took."
-  (case (cpu-interrupt c)
-    (:none 0)
-    (:irq (irq c))
-    (:nmi (nmi c)))
-  (setf (cpu-interrupt c) :none)
-  (let ((inst (decode (fetch c))))
-    ;Remember to step the pc before execution.
-    (step-pc c inst)
-    (execute c inst)))
+  (if (> (cpu-stall c) 0)
+    (progn
+     (decf (cpu-stall c))
+     1)
+    (progn
+     (case (cpu-interrupt c)
+       (:none 0)
+       (:irq (irq c))
+       (:nmi (nmi c)))
+     (setf (cpu-interrupt c) :none)
+     (let ((inst (decode (fetch c))))
+       ;Remember to step the pc before execution.
+       (step-pc c inst)
+       (execute c inst)))))

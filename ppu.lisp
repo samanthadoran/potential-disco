@@ -13,7 +13,7 @@
            #:ppu-trigger-nmi-callback #:ppu-front #:ppu-back #:ppu-frame
            #:color-r #:color-g #:color-b #:read-palette #:write-palette
            #:ppu-memory-get #:ppu-memory-set #:ppu-name-table-data
-           #:ppu-oam-dma-callback))
+           #:ppu-oam-dma-callback #:ppu-oam-stall-adder))
 
 (in-package :NES-ppu)
 
@@ -145,7 +145,8 @@
 
   ;Buffer for $2007 Data Read
   (buffered-data 0 :type (unsigned-byte 8))
-  (oam-dma-callback 0))
+  (oam-dma-callback 0)
+  (oam-stall-adder 0))
 
 (defun read-ppu (p addr)
   (setf addr (mod addr #x4000))
@@ -157,7 +158,7 @@
     ;Palette data
     ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
     ;Default case
-    (T (progn (format t "Cannot read from ~x" (mod addr #x4000)) 0))))
+    (T (progn (print (format nil "PPU: Cannot read from ~x" addr)) 0))))
 
 (defun write-ppu (p addr val)
   (setf addr (mod addr #x4000))
@@ -169,7 +170,7 @@
     ;Palette data
     ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
     ;Default case
-    (T 0)));(progn (format t "Cannot write to ~x" addr) 0))))
+    (T (progn (print (format nil "PPU: Cannot write to ~x" addr)) 0))))
 
 (defun read-palette (p address)
   (aref
@@ -384,7 +385,7 @@
 
 (defun write-dma (p value)
   (let ((address (wrap-word (ash value 8))))
-    (loop for i from 1 to 255
+    (loop for i from 0 to 255
       do
       (progn
        (setf
@@ -397,7 +398,8 @@
         (wrap-byte (1+ (ppu-oam-address p))))
        (setf
         address
-        (wrap-word (1+ address)))))))
+        (wrap-word (1+ address)))))
+    (funcall (ppu-oam-stall-adder p) 513)))
 
 (defun read-register (p selector)
   (cond
@@ -552,11 +554,12 @@
   (if (= (ppu-flag-show-background p) 0)
     0
     (progn
+     (wrap-byte
      (logand
       #x0F
       (ash
        (fetch-tile-data p)
-       (* (- 7 (ppu-x p)) 4 -1))))))
+       (* (- 7 (ppu-x p)) 4 -1)))))))
 
 (defun sprite-pixel (p)
   (when (= (ppu-flag-show-sprites p) 0)
@@ -576,7 +579,7 @@
                   #x0F
                   (ash
                    (aref (ppu-sprite-patterns p) i)
-                   (* -1 (wrap-byte (* offset 4))))))))
+                   (* -1 (wrap-byte (* (wrap-byte (* offset 4))))))))))
            (when (not (= (mod color 4) 0))
              (return-from sprite-pixel (list (wrap-byte i) color))))))))
   (return-from sprite-pixel (list 0 0)))
@@ -594,9 +597,9 @@
        (setf sprite 0))
      (let ((b (not (= (mod background 4) 0)))
            (s (not (= (mod sprite 4) 0)))
-           (color 0))
+           (color #x00))
        (cond
-         ((not (or b s)) (setf color 0))
+         ((and (not b) (not s)) (setf color 0))
          ((and (not b) s) (setf color (logior #x10 sprite)))
          ((and b (not s)) (setf color background))
          (T
@@ -623,8 +626,8 @@
          (setf
           address
           (+
-           (* #x1000 (logand #xFFFF table))
-           (* 16 (logand #xFFFF tile))
+           (logand #xFFFF (* #x1000 (logand #xFFFF table)))
+           (logand #xFFFF (* 16 (logand #xFFFF tile)))
            (logand #xFFFF row)))))
       (progn
        (when (= (logand attributes #x80) #x80)
@@ -659,7 +662,7 @@
              (setf low-tile (wrap-byte (ash low-tile 1)))
              (setf high-tile (wrap-byte (ash high-tile 1)))))
           (setf data (logand #xFFFFFFFF (ash data 4)))
-          (setf data (logior data a p1 p2))))
+          (setf data (logand #xFFFFFFFF (logior data a p1 p2)))))
       data)))
 
 (defun evaluate-sprites (p)
@@ -675,8 +678,9 @@
        (let* ((y (aref (ppu-oam-data p) (* i 4)))
              (a (aref (ppu-oam-data p) (+ 2 (* i 4))))
              (x (aref (ppu-oam-data p) (+ 3 (* i 4))))
-             (row (- (ppu-scanline p) (to-signed-byte-8 y))))
+             (row (- (ppu-scanline p) y)))
          (when (and (>= row 0) (< row h))
+           (progn
            (when (< count 8)
              (setf
               (aref (ppu-sprite-patterns p) count)
@@ -690,7 +694,7 @@
              (setf
               (aref (ppu-sprite-indexes p) count)
               (wrap-byte i)))
-           (incf count)))))
+           (incf count))))))
     (when (> count 8)
       (setf count 8)
       (setf (ppu-flag-sprite-overflow p) 1))
@@ -747,7 +751,12 @@
   (let* (
          (cycle (ppu-cycle p))
          (scanline (ppu-scanline p))
-         (rendering-enabled (or (not (= 0 (ppu-flag-show-background p))) (not (= 0 (ppu-flag-show-sprites p)))))
+         (rendering-enabled
+          (not
+           (=
+            0
+            (ppu-flag-show-background p)
+            (ppu-flag-show-sprites p))))
          (pre-line (= scanline 261))
          (visible-line (< scanline 240))
          (render-line (or pre-line visible-line))
@@ -755,7 +764,6 @@
          (visible-cycle (and (>= cycle 1) (<= cycle 256)))
          (fetch-cycle (or pre-fetch-cycle visible-cycle)))
     (when rendering-enabled
-      ;(loop (print "Rendering is enabled."))
       ;Begin background logic
       (when (and visible-line visible-cycle)
         (render-pixel p))
