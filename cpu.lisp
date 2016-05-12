@@ -187,7 +187,7 @@
      (funcall (aref (cpu-memory-set c) 2) addr val))
     ;Don't forget oam-dma
     ((= addr #x4014) (funcall (aref (cpu-memory-set c) 1) addr val))
-    (T (progn (print (format nil "CPU: We really can't write to 0x~x" addr))) 0)))
+    (T 0)));(progn (print (format nil "CPU: We really can't write to 0x~x" addr))) 0)))
 
 (defun reset (c)
   "Reset state of cpu"
