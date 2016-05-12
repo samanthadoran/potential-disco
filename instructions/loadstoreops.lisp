@@ -109,6 +109,16 @@
    nil
    "TYA changed accumulator to 0x~x" (cpu-accumulator c)))
 
+(defun tsx (c inst)
+ "TSX. Transfer stack to x"
+ (declare (ignore inst))
+ (setf
+  (cpu-x c)
+  (cpu-sp c))
+ (format
+  nil
+  "TSX changed cpu-x to 0x~x" (cpu-x c)))
+
 (defun txs (c inst)
   "TXS. Transfer x to stack"
   (declare (ignore inst))

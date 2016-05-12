@@ -20,6 +20,16 @@
    nil
    "SEC. Set the carry flag"))
 
+(defun clv (c inst)
+ "CLV: clear overflow flag"
+ (declare (ignore inst))
+ (setf
+  (flags-overflow (cpu-sr c))
+  nil)
+ (format
+  nil
+  "VLC. Clear the overflow flag"))
+
 (defun clc (c inst)
   "CLC: clear carry flag"
   (declare (ignore inst))
@@ -39,3 +49,13 @@
   (format
    nil
    "CLD. Cleared the decimal flag"))
+
+(defun sed (c inst)
+ "Set decimal flag"
+ (declare (ignore inst))
+ (setf
+  (flags-bcd (cpu-sr c))
+  T)
+ (format
+  nil
+  "SED. Cleared the decimal flag"))

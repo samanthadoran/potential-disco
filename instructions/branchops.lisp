@@ -34,6 +34,7 @@
     (setf
      (cpu-pc c)
      addr)
+
     (format
      nil
      "JMP absolute to 0x~x" addr)))
@@ -51,6 +52,7 @@
                (hi-buggy (read-cpu c (1+ (logand #xFF00 addr-base)))))
           (make-word-from-bytes hi-buggy lo-buggy)))
        (get-address c inst)))
+
     (format
      nil
      "JMP indirect from ~x to ~x, inst looks like ~x"
@@ -61,6 +63,7 @@
   (setf
    (cpu-pc c)
    (wrap-word (1+ (pull16 c))))
+
   (format
    nil
    "RTS to ~x." (cpu-pc c)))
@@ -72,6 +75,7 @@
     (setf
      (cpu-pc c)
      (get-address c inst)))
+
   (format
    nil
    "BPL pc is now 0x~x" (cpu-pc c)))
@@ -83,6 +87,7 @@
    (setf
     (cpu-pc c)
     (get-address c inst)))
+
  (format
   nil
   "BMI pc is now 0x~x" (cpu-pc c)))
@@ -97,6 +102,28 @@
  (format
   nil
   "BCS pc is now 0x~x" (cpu-pc c)))
+
+(defun bvc (c inst)
+ (when (not (flags-overflow (cpu-sr c)))
+   ;Branch taken means increment cycles
+   (incf (cpu-cycles c))
+   (setf
+    (cpu-pc c)
+    (get-address c inst)))
+ (format
+  nil
+  "BVC pc is now 0x~x" (cpu-pc c)))
+
+(defun bvs (c inst)
+ (when (flags-overflow (cpu-sr c))
+   ;Branch taken means increment cycles
+   (incf (cpu-cycles c))
+   (setf
+    (cpu-pc c)
+    (get-address c inst)))
+ (format
+  nil
+  "BVS pc is now 0x~x" (cpu-pc c)))
 
 (defun bcc (c inst)
   (when (not (flags-carry (cpu-sr c)))

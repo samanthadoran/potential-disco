@@ -1,5 +1,8 @@
 (in-package :6502-cpu)
 
+(defun nop (c inst)
+  (declare (ignore c inst)))
+
 (defun adc (c inst)
   (let ((mode (instruction-addressing-mode inst))
         (a (get-value c inst))
