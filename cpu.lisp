@@ -8,7 +8,8 @@
            #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
            #:wrap-byte #:step-cpu #:decode #:execute #:make-instruction
            #:cpu-memory-get #:cpu-memory-set #:ora #:to-signed-byte-8
-           #:trigger-nmi-callback #:trigger-irq-callback #:read-cpu #:add-to-stall))
+           #:trigger-nmi-callback #:trigger-irq-callback #:read-cpu #:add-to-stall
+           #:ops))
 
 (in-package :6502-cpu)
 
@@ -466,6 +467,23 @@
      :hi-byte hi-byte
      :lo-byte lo-byte)))
 
+
+(defvar ops
+ (progn
+  (let ((operations (make-array 256)))
+    (loop for i from 0 to 255
+      do
+      (setf
+       (aref operations i)
+       (decode
+        (make-instruction
+         :hi-byte 0
+         :lo-byte 0
+         :unmasked-opcode i
+         :opcode i
+         :addressing-mode :implicit))))
+    operations)))
+
 (defun instruction-cycles (c inst)
   (let* ((address (get-address c inst))
         (mode (instruction-addressing-mode inst))
@@ -538,6 +556,11 @@
        (:irq (irq c))
        (:nmi (nmi c)))
      (setf (cpu-interrupt c) :none)
+    ;  (let ((inst (aref ops (instruction-unmasked-opcode (fetch c)))))
+    ;    (setf (instruction-lo-byte inst) (read-cpu c (+ (cpu-pc c) 1)))
+    ;    (setf (instruction-hi-byte inst) (read-cpu c (+ (cpu-pc c) 2)))
+    ;    (step-pc c inst)
+    ;    (execute c inst)))))
      (let ((inst (decode (fetch c))))
        ;Remember to step the pc before execution.
        (step-pc c inst)
