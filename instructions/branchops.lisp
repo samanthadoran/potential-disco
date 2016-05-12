@@ -17,7 +17,8 @@
    (make-flags-from-byte (logior #x20 (logand (pull-stack c) #xEF))))
   (setf
    (cpu-pc c)
-   (pull16 c)))
+   (pull16 c))
+  (format nil "RTI to 0x~x" (cpu-pc c)))
 
 (defun jsr (c inst)
   "JSR: jump subroutine"
