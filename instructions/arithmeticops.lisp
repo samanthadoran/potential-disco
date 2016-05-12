@@ -18,7 +18,7 @@
 
     (setf
      (flags-overflow (cpu-sr c))
-     (if (and (= (logand #x80 (logxor a b)) 0) (not (= (logxor a (cpu-accumulator c)) 0)))
+     (if (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0)))
        T nil))
 
     (set-zn c (cpu-accumulator c))
@@ -43,7 +43,7 @@
 
    (setf
     (flags-overflow (cpu-sr c))
-    (if (and (= (logand #x80 (logxor a b)) 0) (not (= (logxor a (cpu-accumulator c)) 0)))
+    (if (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0)))
       T nil))
 
    (format
@@ -181,6 +181,7 @@
        (val (get-value c inst))
        (addr (get-address c inst)))
    (set-zn c (logand val (cpu-accumulator c)))
+   (setf (flags-overflow (cpu-sr c)) (logand 1 (ash val -6)))
    (format
     nil
     "BIT with mode ~a from address 0x~x that holds value 0x~x"
