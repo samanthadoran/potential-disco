@@ -105,7 +105,7 @@
 
 (defun trigger-irq-callback (c)
   (lambda ()
-          (when (equal :none (cpu-interrupt c))
+          (when (= 0 (flags-interrupt (cpu-sr c)))
             (setf (cpu-interrupt c) :irq))))
 
 (defun wrap-byte (val)
@@ -129,8 +129,8 @@
 (defun make-flags-from-byte (val)
   (make-flags
    :carry (= (ldb (byte 1 0) val) 1)
-   :interrupt (= (ldb (byte 1 1) val) 1)
-   :zero (= (ldb (byte 1 2) val) 1)
+   :zero (= (ldb (byte 1 1) val) 1)
+   :interrupt (= (ldb (byte 1 2) val) 1)
    :bcd (= (ldb (byte 1 3) val) 1)
    :soft-interrupt (= (ldb (byte 1 4) val) 1)
    :unused (= (ldb (byte 1 5) val) 1)
@@ -227,7 +227,7 @@
    val)
   (setf
    (cpu-sp c)
-   (wrap-byte (1- (cpu-sp c)))))
+   (wrap-byte (- (cpu-sp c) 1))))
 
 (defun pull16 (c)
   "Pull twice and make a 16 bit address."
