@@ -34,7 +34,7 @@
   (logand #xFF val))
 
 (defun wrap-word (val)
-  (logand #x7FFF val))
+  (logand #xFFFF val))
 
 (defun to-signed-byte-8 (val)
   (if (= (ldb (byte 1 7) val) 1)
@@ -156,9 +156,7 @@
     ;Name table data
     ((< addr #x3F00) (funcall (aref (ppu-memory-get p) 1) addr))
     ;Palette data
-    ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))
-    ;Default case
-    (T (progn (print (format nil "PPU: Cannot read from ~x" addr)) 0))))
+    ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))))
 
 (defun write-ppu (p addr val)
   (setf addr (mod addr #x4000))
@@ -168,9 +166,7 @@
     ;Name table data
     ((< addr #x3F00) (funcall (aref (ppu-memory-set p) 1) addr val))
     ;Palette data
-    ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))
-    ;Default case
-    (T (progn (print (format nil "PPU: Cannot write to ~x" addr)) 0))))
+    ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))))
 
 (defun read-palette (p address)
   (aref
@@ -268,7 +264,7 @@
      (ppu-nmi-occurred p)
      nil)
     (nmi-change p)
-    result))
+    (wrap-byte result)))
 
 
 (defun write-oam-address (p value)
@@ -333,9 +329,9 @@
      (setf
       (ppu-tv p)
       (wrap-word
-      (logior
-       (logand (ppu-tv p) #x80FF)
-       (ash (logand value #x3F) 8))))
+       (logior
+        (logand (ppu-tv p) #x80FF)
+        (ash (logand value #x3F) 8))))
      (setf (ppu-w p) 1))
     (progn
      (setf
@@ -384,7 +380,7 @@
        32)))))
 
 (defun write-dma (p value)
-  (let ((address (wrap-word (ash value 8))))
+  (let ((address (logand #xFFFF (ash value 8))))
     (loop for i from 0 to 255
       do
       (progn
@@ -398,7 +394,7 @@
         (wrap-byte (1+ (ppu-oam-address p))))
        (setf
         address
-        (wrap-word (1+ address)))))
+        (logand #xFFFF (1+ address)))))
     (funcall (ppu-oam-stall-adder p) 513)))
 
 (defun read-register (p selector)
@@ -605,7 +601,7 @@
          (T
           (progn
            (when (and (< x 255) (= (aref (ppu-sprite-indexes p) i) 0))
-             ;(print "Setting sprite zero hit?")
+             (print "Setting sprite zero hit?")
              (setf (ppu-flag-sprite-zero-hit p) 1))
            (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
