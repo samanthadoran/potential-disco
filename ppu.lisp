@@ -89,8 +89,8 @@
   (oam-data (make-array 256 :element-type '(unsigned-byte 8)))
 
   ;Registers
-  (v 0 :type (unsigned-byte 15)) ;Current vram address
-  (tv 0 :type (unsigned-byte 15));Temporary vram address
+  (v 0 :type (unsigned-byte 16)) ;Current vram address
+  (tv 0 :type (unsigned-byte 16));Temporary vram address
   (x 0 :type (unsigned-byte 3));Fine x scroll
   (w 0 :type (unsigned-byte 1));Write toggle
   (f 0 :type (unsigned-byte 1));Odd frame flag
@@ -380,7 +380,7 @@
        32)))))
 
 (defun write-dma (p value)
-  (let ((address (logand #xFFFF (ash value 8))))
+  (let ((address (wrap-word (ash value 8))))
     (loop for i from 0 to 255
       do
       (progn
@@ -394,7 +394,7 @@
         (wrap-byte (1+ (ppu-oam-address p))))
        (setf
         address
-        (logand #xFFFF (1+ address)))))
+        (wrap-word (1+ address)))))
     (funcall (ppu-oam-stall-adder p) 513)))
 
 (defun read-register (p selector)
@@ -502,8 +502,8 @@
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
          (table (ppu-flag-background-table p))
          (tile (ppu-name-table p))
-         (address (+ (logand #xFFFF (* #x1000 (logand #xFFFF table))) (* 16 (logand #xFFFF tile)) fine-y)))
-    (setf (ppu-high-tile p) (read-ppu p (wrap-word address)))))
+         (address (+ (* #x1000 (logand #xFFFF table)) (* 16 (logand #xFFFF tile)) fine-y)))
+    (setf (ppu-low-tile p) (read-ppu p address))))
 
 (defun fetch-high-tile (p)
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
@@ -601,7 +601,7 @@
          (T
           (progn
            (when (and (< x 255) (= (aref (ppu-sprite-indexes p) i) 0))
-             (print "Setting sprite zero hit?")
+             ;(print "Setting sprite zero hit?")
              (setf (ppu-flag-sprite-zero-hit p) 1))
            (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
