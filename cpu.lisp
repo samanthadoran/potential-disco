@@ -176,6 +176,12 @@
     ;PRG ROM
     ((<= addr #xFFFF) (funcall (aref (cpu-memory-get c) 5) addr))))
 
+(defun read16-bug (c addr)
+  "Emulate indirect bugs..."
+  (let ((lo (read-cpu c addr))
+        (hi (read-cpu c (logior (logand addr #xFF00) (1+ (wrap-byte addr))))))
+    (make-word-from-bytes hi lo)))
+
 ;TODO: Write functions for this
 (defun write-cpu (c addr val)
   (cond
@@ -284,76 +290,40 @@
         (lo-byte (instruction-lo-byte inst))
         (hi-byte (instruction-hi-byte inst)))
     (wrap-word
-    (cond
+     (case mode
       ;Somewhere in zero page...
-      ((equal mode :zero-page) lo-byte)
+      (:zero-page lo-byte)
       ;Super simple, just make a two byte address from the supplied two bytes
-      ((equal mode :absolute)
-       (make-word-from-bytes hi-byte lo-byte))
+      (:absolute (make-word-from-bytes hi-byte lo-byte))
       ;Treat the low byte as though it were signed, use it as an offset for PC
-      ((equal mode :relative)
-       (wrap-word
-        (+
-         (cpu-pc c)
-         ;Perform two's complement to figure out the offset
-         (to-signed-byte-8 lo-byte))))
+      (:relative (wrap-word (+ (cpu-pc c) (to-signed-byte-8 lo-byte))))
       ;Read the address contained at the supplied two byte address.
-      ((equal mode :indirect)
+      (:indirect
        (let ((ptr-addr (make-word-from-bytes hi-byte lo-byte)))
-         (make-word-from-bytes
-          (read-cpu c (wrap-word (1+ ptr-addr)))
-          (read-cpu c ptr-addr))))
+         (read16-bug c ptr-addr)))
       ;Add the x register to the low-byte for zero-page addressing
-      ((equal mode :zero-page-indexed-x)
-       (wrap-byte (+ lo-byte (cpu-x c))))
+      (:zero-page-indexed-x (wrap-byte (+ lo-byte (cpu-x c))))
       ;Add the y register to the low-byte for zero-page addressing
-      ((equal mode :zero-page-indexed-y)
-       (wrap-byte (+ lo-byte (cpu-y c))))
+      (:zero-page-indexed-y (wrap-byte (+ lo-byte (cpu-y c))))
       ;Add the x register to the supplied two byte address
-      ((equal mode :absolute-indexed-x)
+      (:absolute-indexed-x
        (wrap-word
         (+
          (make-word-from-bytes hi-byte lo-byte)
          (cpu-x c))))
       ;Add the y register to the supplied two byte address
-      ((equal mode :absolute-indexed-y)
+      (:absolute-indexed-y
        (wrap-word
         (+
          (make-word-from-bytes hi-byte lo-byte)
          (cpu-y c))))
       ;Get the address contained at lo-byte + x
-      ((equal mode :indexed-indirect)
-       (if (= lo-byte #xFF)
-         (progn
-          (make-word-from-bytes
-           (read-cpu c #x00)
-           (read-cpu c #xFF)))
-         (progn
-          (make-word-from-bytes
-           (read-cpu
-            c
-            (wrap-byte
-             (+ 1 lo-byte (cpu-x c))))
-           (read-cpu
-            c
-            (wrap-byte
-             (+ lo-byte (cpu-x c))))))))
+      (:indexed-indirect
+       (read16-bug c (wrap-word (+ (read-cpu c lo-byte) (cpu-x c)))))
       ;Get the address containted at lo-byte + y
-      ((equal mode :indirect-indexed)
-       (if (= lo-byte #xFF)
-         (progn
-          (+
-           (cpu-y c)
-           (make-word-from-bytes
-            (read-cpu c #x00)
-            (read-cpu c #xFF))))
-         (progn
-          (+
-           (cpu-y c)
-           (make-word-from-bytes
-            (read-cpu c (+ 1 lo-byte))
-            (read-cpu c lo-byte))))))
-      (T 0)))))
+      (:indirect-indexed
+       (wrap-word (+ (cpu-y c) (read16-bug c lo-byte))))
+      (otherwise 0)))))
 
 (defun get-value (c inst)
   "Get the value from an instruction"
