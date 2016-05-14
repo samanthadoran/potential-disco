@@ -140,17 +140,11 @@
 
 (defun to-signed-byte-8 (val)
   (if (= (ldb (byte 1 7) val) 1)
-    (*
-     -1
-     (wrap-byte
-      (1+ (lognot val))))
-    (logand #x7f val)))
+    (* -1 (wrap-byte (1+ (lognot val))))
+    val))
 
 (defun make-word-from-bytes (hi lo)
-  (wrap-word
-   (logior
-    (ash hi 8)
-    lo)))
+  (wrap-word (logior (ash hi 8) lo)))
 
 (defun pages-differ (a b)
   (declare ((unsigned-byte 16) a b))

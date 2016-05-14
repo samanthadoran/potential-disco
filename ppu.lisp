@@ -38,11 +38,8 @@
 
 (defun to-signed-byte-8 (val)
   (if (= (ldb (byte 1 7) val) 1)
-    (*
-     -1
-     (wrap-byte
-      (1+ (lognot val))))
-    (logand #x7f val)))
+    (* -1 (wrap-byte (1+ (lognot val))))
+    val))
 
 (defvar
   *palette*
@@ -242,9 +239,7 @@
    (logand (ash value -7) 1)))
 
 (defun read-status (p)
-  (setf
-   (ppu-w p)
-   0)
+  (setf (ppu-w p) 0)
   (let ((result (logand (ppu-register p) #x1F)))
     (setf
      result
@@ -260,32 +255,20 @@
         result
         (wrap-byte (ash 1 7)))
        result))
-    (setf
-     (ppu-nmi-occurred p)
-     nil)
+    (setf (ppu-nmi-occurred p) nil)
     (nmi-change p)
     (wrap-byte result)))
 
 
 (defun write-oam-address (p value)
-  (setf
-   (ppu-oam-address p)
-   value))
+  (setf (ppu-oam-address p) value))
 
 (defun read-oam-data (p)
-  (aref
-   (ppu-oam-data p)
-   (ppu-oam-address p)))
+  (aref (ppu-oam-data p) (ppu-oam-address p)))
 
 (defun write-oam-data (p value)
-  (setf
-   (aref
-    (ppu-oam-data p)
-    (ppu-oam-address p))
-   value)
-  (setf
-   (ppu-oam-address p)
-   (wrap-byte (1+ (ppu-oam-address p)))))
+  (setf (aref (ppu-oam-data p) (ppu-oam-address p)) value)
+  (setf (ppu-oam-address p) (wrap-byte (1+ (ppu-oam-address p)))))
 
 (defun write-scroll (p value)
   (if (= (ppu-w p) 0)
@@ -298,12 +281,8 @@
         (ppu-tv p)
         #xFFE0)
        (ash value -3))))
-     (setf
-      (ppu-x p)
-      (logand value #x07))
-     (setf
-      (ppu-w p)
-      1))
+     (setf (ppu-x p) (logand value #x07))
+     (setf (ppu-w p) 1))
     (progn
      (setf
       (ppu-tv p)
@@ -319,9 +298,7 @@
       (logior
        (logand (ppu-tv p) #xFC1F)
        (ash (logand value #xF8) 2))))
-     (setf
-      (ppu-w p)
-      0))))
+     (setf (ppu-w p) 0))))
 
 (defun write-address (p value)
   (if (= (ppu-w p) 0)
@@ -336,9 +313,7 @@
     (progn
      (setf
       (ppu-tv p)
-      (logior
-       (logand (ppu-tv p) #xFF00)
-       value))
+      (logior (logand (ppu-tv p) #xFF00) value))
      (setf (ppu-v p) (ppu-tv p))
      (setf (ppu-w p) 0))))
 
@@ -348,12 +323,8 @@
     (if (< (mod (ppu-v p) #x4000) #x3F00)
       (progn
        (let ((buffered (ppu-buffered-data p)))
-         (setf
-          (ppu-buffered-data p)
-          value)
-         (setf
-          value
-          buffered)))
+         (setf (ppu-buffered-data p) value)
+         (setf value buffered)))
       (setf
        (ppu-buffered-data p)
        (read-ppu p (wrap-word (- (ppu-v p) #x1000)))))
@@ -385,51 +356,44 @@
       do
       (progn
        (setf
-        (aref
-         (ppu-oam-data p)
-         (ppu-oam-address p))
+        (aref (ppu-oam-data p) (ppu-oam-address p))
         (funcall (ppu-oam-dma-callback p) address))
-       (setf
-        (ppu-oam-address p)
-        (wrap-byte (1+ (ppu-oam-address p))))
-       (setf
-        address
-        (wrap-word (1+ address)))))
+       (setf (ppu-oam-address p) (wrap-byte (1+ (ppu-oam-address p))))
+       (setf address (wrap-word (1+ address)))))
     (funcall (ppu-oam-stall-adder p) 513)))
 
 (defun read-register (p selector)
-  (cond
+  (case selector
     ;Read ppu status
-    ((= selector 2) (read-status p))
+    (2 (read-status p))
     ;Read OAM Data
-    ((= selector 4) (read-oam-data p))
+    (4 (read-oam-data p))
     ;Read Data
-    ((= selector 7) (read-data p))
-    ;Default case
-    (T 0)))
+    (7 (read-data p))
+    (otherwise 0)))
 
 (defun write-register (p selector value)
   (setf
    (ppu-register p)
    value)
-  (cond
+  (case selector
     ;Write Control
-    ((= selector 0) (write-control p value))
+    (0 (write-control p value))
     ;Write Mask
-    ((= selector 1) (write-mask p value))
+    (1 (write-mask p value))
     ;Write OAM Address
-    ((= selector 3) (write-oam-address p value))
+    (3 (write-oam-address p value))
     ;Write OAM Data
-    ((= selector 4) (write-oam-data p value))
+    (4 (write-oam-data p value))
     ;Write scroll
-    ((= selector 5) (write-scroll p value))
+    (5 (write-scroll p value))
     ;Write Address
-    ((= selector 6) (write-address p value))
+    (6 (write-address p value))
     ;Write Data
-    ((= selector 7) (write-data p value))
+    (7 (write-data p value))
     ;Write DMA
-    ((= selector #x4014) (write-dma p value))
-    (T 0)));(format t "We really can't write to register ~x" selector))))
+    (#x4014 (write-dma p value))
+    (otherwise 0)))
 
 (defun increment-x (p)
   (if (= (logand (ppu-v p) #x001F) 31)
@@ -475,9 +439,7 @@
 (defun fetch-name-table (p)
   (let* ((v (ppu-v p))
          (address (logior #x2000 (logand v #x0FFF))))
-    (setf
-     (ppu-name-table p)
-     (wrap-byte (read-ppu p address)))))
+    (setf (ppu-name-table p) (read-ppu p address))))
 
 (defun fetch-attribute-table (p)
   (let* ((v (ppu-v p))
@@ -492,11 +454,7 @@
     (setf
      (ppu-attribute-table p)
      (wrap-byte
-      (ash
-       (logand
-        (ash (read-ppu p address) (* -1 shift))
-        3)
-       2)))))
+      (ash (logand (ash (read-ppu p address) (* -1 shift)) 3) 2)))))
 
 (defun fetch-low-tile (p)
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
@@ -519,24 +477,14 @@
       (let ((a (ppu-attribute-table p))
             (p1 (ash (logand #x80 (ppu-low-tile p)) -7))
             (p2 (ash (logand #x80 (ppu-high-tile p)) -6)))
-        (setf
-         (ppu-low-tile p)
-         (wrap-byte (ash (ppu-low-tile p) 1)))
-        (setf
-         (ppu-high-tile p)
-         (wrap-byte (ash (ppu-high-tile p) 1)))
-        (setf
-         data
-         (ash data 4))
+        (setf (ppu-low-tile p) (wrap-byte (ash (ppu-low-tile p) 1)))
+        (setf (ppu-high-tile p) (wrap-byte (ash (ppu-high-tile p) 1)))
+        (setf data (ash data 4))
         (setf
          data
          (logand
           #xFFFFFFFF
-          (logior
-           a
-           p1
-           p2
-           data)))))
+          (logior a p1 p2 data)))))
     (setf (ppu-tile-data p) (logior (ppu-tile-data p) data))))
 
 (defun fetch-tile-data (p)
@@ -549,13 +497,11 @@
 (defun background-pixel (p)
   (if (= (ppu-flag-show-background p) 0)
     0
-    (progn
-     (wrap-byte
-     (logand
-      #x0F
-      (ash
-       (fetch-tile-data p)
-       (* (- 7 (ppu-x p)) 4 -1)))))))
+    (logand
+     #x0F
+     (ash
+      (fetch-tile-data p)
+      (* (- 7 (ppu-x p)) 4 -1)))))
 
 (defun sprite-pixel (p)
   (when (= (ppu-flag-show-sprites p) 0)
@@ -601,7 +547,6 @@
          (T
           (progn
            (when (and (< x 255) (= (aref (ppu-sprite-indexes p) i) 0))
-             ;(print "Setting sprite zero hit?")
              (setf (ppu-flag-sprite-zero-hit p) 1))
            (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
@@ -662,8 +607,7 @@
       data)))
 
 (defun evaluate-sprites (p)
-  (let (
-        (h
+  (let ((h
          (if (= (ppu-flag-sprite-size p) 0)
            8
            16))
@@ -697,15 +641,9 @@
     (setf (ppu-sprite-count p) count)))
 
 (defun reset-ppu (p)
-  (setf
-   (ppu-cycle p)
-   340)
-  (setf
-   (ppu-scanline p)
-   240)
-  (setf
-   (ppu-frame p)
-   0)
+  (setf (ppu-cycle p) 340)
+  (setf (ppu-scanline p) 240)
+  (setf (ppu-frame p) 0)
   (write-control p 0)
   (write-mask p 0)
   (write-oam-address p 0))
@@ -744,8 +682,7 @@
 
 (defun step-ppu (p)
   (tick p)
-  (let* (
-         (cycle (ppu-cycle p))
+  (let* ((cycle (ppu-cycle p))
          (scanline (ppu-scanline p))
          (rendering-enabled
           (not
@@ -773,12 +710,12 @@
           #xFFFFFFFFFFFFFFFF
           (ash (ppu-tile-data p) 4)))
         ;Dependingon what cycle we are in act accordingly
-        (cond
-          ((= (mod cycle 8) 0) (store-tile-data p))
-          ((= (mod cycle 8) 1) (fetch-name-table p))
-          ((= (mod cycle 8) 3) (fetch-attribute-table p))
-          ((= (mod cycle 8) 5) (fetch-low-tile p))
-          ((= (mod cycle 8) 7) (fetch-high-tile p))))
+        (case (mod cycle 8)
+          (0 (store-tile-data p))
+          (1 (fetch-name-table p))
+          (3 (fetch-attribute-table p))
+          (5 (fetch-low-tile p))
+          (7 (fetch-high-tile p))))
       ;When we are on preline and
       (when (and pre-line (>= (ppu-cycle p) 280) (<= (ppu-cycle p) 304))
         (copy-y p))
