@@ -415,11 +415,6 @@
      (addressing-mode (determine-addressing-mode opcode)))
     ;If it is a special case, modify
     (cond
-      ;Jump Absolute
-      ((= opcode #x4C)
-       (progn
-        (setf addressing-mode :absolute)
-        (setf masked-opcode opcode)))
       ((member
         opcode
         '(#x10 #x30 #x50 #x70 #x90 #xB0 #xD0 #xF0))
@@ -428,13 +423,7 @@
         (setf masked-opcode opcode)))
       ((member
         opcode
-        '(#x0 #x40 #x60))
-       (progn
-        (setf addressing-mode :implicit)
-        (setf masked-opcode opcode)))
-      ((member
-        opcode
-        '(#x20 #x2C))
+        '(#x20 #x2C #x4C))
        (progn
         (setf addressing-mode :absolute)
         (setf masked-opcode opcode)))
@@ -446,16 +435,9 @@
        (progn
         (setf addressing-mode :zero-page)
         (setf masked-opcode opcode)))
-      ((member opcode '(#x0 #x40 #x60))
-       (progn
-        (setf addressing-mode :implicit)
-        (setf masked-opcode opcode)))
       ((member opcode '(#x08 #x28 #x48 #x68 #x88 #xA8 #xC8 #xE8 #x18
-                         #x38 #x58 #x78 #x98 #xB8 #xD8 #xF8))
-       (progn
-        (setf addressing-mode :implicit)
-        (setf masked-opcode opcode)))
-      ((member opcode '(#x8A #x9A #xAA #xBA #xCA #xEA))
+                         #x38 #x58 #x78 #x98 #xB8 #xD8 #xF8 #x8A
+                         #x9A #xAA #xBA #xCA #xEA #x0 #x40 #x60))
        (progn
         (setf addressing-mode :implicit)
         (setf masked-opcode opcode))))
