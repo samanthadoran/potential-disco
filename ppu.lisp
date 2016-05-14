@@ -246,15 +246,10 @@
      (logior
       (logior
        result
-       (wrap-byte (ash (ppu-flag-sprite-overflow p) 5)))
-      (wrap-byte (ash (ppu-flag-sprite-zero-hit p) 6))))
-    (setf
-     result
-     (if (ppu-nmi-occurred p)
-       (logior
-        result
-        (wrap-byte (ash 1 7)))
-       result))
+       (ash (ppu-flag-sprite-overflow p) 5))
+      (ash (ppu-flag-sprite-zero-hit p) 6)))
+    (when (ppu-nmi-occurred p)
+      (setf result (logior result (ash 1 7))))
     (setf (ppu-nmi-occurred p) nil)
     (nmi-change p)
     (wrap-byte result)))
@@ -319,7 +314,7 @@
 
 
 (defun read-data (p)
-  (let ((value (read-ppu p (wrap-word (ppu-v p)))))
+  (let ((value (read-ppu p (ppu-v p))))
     (if (< (mod (ppu-v p) #x4000) #x3F00)
       (progn
        (let ((buffered (ppu-buffered-data p)))
@@ -370,7 +365,7 @@
     (4 (read-oam-data p))
     ;Read Data
     (7 (read-data p))
-    (otherwise 0)))
+    (otherwise (progn (print "Uhm?") 0))))
 
 (defun write-register (p selector value)
   (setf
@@ -393,7 +388,7 @@
     (7 (write-data p value))
     ;Write DMA
     (#x4014 (write-dma p value))
-    (otherwise 0)))
+    (otherwise (progn (print "Uhm in write?") 0))))
 
 (defun increment-x (p)
   (if (= (logand (ppu-v p) #x001F) 31)
