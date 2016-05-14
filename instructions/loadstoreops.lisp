@@ -1,133 +1,97 @@
 (in-package :6502-cpu)
+(declaim (optimize (speed 3) (safety 1)))
 
 (defun ldy (c inst)
+  (declare (cpu c))
+  (declare (instruction inst))
   "LDY. Load value to y"
-  (let ((mode (instruction-addressing-mode inst))
-        (val (get-value c inst))
-        (addr (get-address c inst)))
-    (set-zn c (setf (cpu-y c) val))
-    (format
-     nil
-     "LDY with mode ~a~@[ from 0x~x~] loaded value 0x~x into cpu-y"
-     mode (when (not (equal mode :immediate)) addr) val)))
+  (set-zn c (setf (cpu-y c) (get-value c inst))))
 
 (defun lda (c inst)
+(declare (cpu c))
+(declare (instruction inst))
  "LDA. Load value to accumulator"
- (let ((mode (instruction-addressing-mode inst))
-       (val (get-value c inst))
-       (addr (get-address c inst)))
-   (set-zn c (setf (cpu-accumulator c) val))
-   (format
-    nil
-    "LDA with mode ~a~@[ from 0x~x~] loaded value 0x~x into accumulator"
-    mode (when (not (equal mode :immediate)) addr) val)))
+  (set-zn c (setf (cpu-accumulator c) (get-value c inst))))
 
 (defun ldx (c inst)
- "LDX. Load value to cpu-x"
- (let ((mode (instruction-addressing-mode inst))
-       (val (get-value c inst))
-       (addr (get-address c inst)))
-   (set-zn c (setf (cpu-x c) val))
-   (format
-    nil
-    "LDX with mode ~a~@[ from 0x~x~] loaded value 0x~x into cpu-x"
-    mode (when (not (equal mode :immediate)) addr) val)))
+  (declare (cpu c))
+  (declare (instruction inst))
+  "LDX. Load value to cpu-x"
+  (set-zn c (setf (cpu-x c) (get-value c inst))))
 
 (defun sty (c inst)
-  (let ((addr (get-address c inst)))
-    (write-cpu c addr (cpu-y c))
-    (format
-     nil
-     "STY stored 0x~x at 0x~x" (cpu-y c) addr)))
+  (declare (cpu c))
+  (declare (instruction inst))
+  (write-cpu c (get-address c inst) (cpu-y c)))
 
 (defun sta (c inst)
- (let ((addr (get-address c inst)))
-   (write-cpu c addr (cpu-accumulator c))
-   (format
-    nil
-    "STA stored 0x~x at 0x~x" (cpu-accumulator c) addr)))
+  (declare (cpu c))
+  (declare (instruction inst))
+  (write-cpu c (get-address c inst) (cpu-accumulator c)))
 
 (defun stx (c inst)
-  (let ((addr (get-address c inst)))
-    (write-cpu c addr (cpu-x c))
-    (format
-     nil
-     "STX stored 0x~x at 0x~x" (cpu-x c) addr)))
+  (declare (cpu c))
+  (declare (instruction inst))
+  (write-cpu c (get-address c inst) (cpu-x c)))
 
 (defun tax (c inst)
+  (declare (cpu c))
+  (declare (instruction inst))
   "TAX. Transfer accumulator to x"
   (declare (ignore inst))
-  (set-zn c (setf (cpu-x c) (cpu-accumulator c)))
-  (format
-   nil
-   "TAX changed x to 0x~x" (cpu-x c)))
+  (set-zn c (setf (cpu-x c) (cpu-accumulator c))))
 
 (defun tay (c inst)
- "TAY. Transfer accumulator to y"
- (declare (ignore inst))
- (set-zn c (setf(cpu-y c) (cpu-accumulator c)))
- (format
-  nil
-  "TAX changed y to 0x~x" (cpu-y c)))
+  (declare (cpu c))
+  (declare (instruction inst))
+  "TAY. Transfer accumulator to y"
+  (declare (ignore inst))
+  (set-zn c (setf(cpu-y c) (cpu-accumulator c))))
 
 (defun txa (c inst)
+  (declare (cpu c))
+  (declare (instruction inst))
   "TXA. Transfer x to accumulator"
   (declare (ignore inst))
-  (set-zn c (setf (cpu-accumulator c) (cpu-x c)))
-  (format
-   nil
-   "TXA changed accumulator to 0x~x" (cpu-accumulator c)))
+  (set-zn c (setf (cpu-accumulator c) (cpu-x c))))
 
 (defun tya (c inst)
+  (declare (cpu c))
+  (declare (instruction inst))
   "TYA. Transfer y to accumulator"
   (declare (ignore inst))
-  (set-zn c (setf (cpu-accumulator c) (cpu-y c)))
-  (format
-   nil
-   "TYA changed accumulator to 0x~x" (cpu-accumulator c)))
+  (set-zn c (setf (cpu-accumulator c) (cpu-y c))))
 
 (defun tsx (c inst)
- "TSX. Transfer stack to x"
- (declare (ignore inst))
- (set-zn c (setf (cpu-x c) (cpu-sp c)))
- (format
-  nil
-  "TSX changed cpu-x to 0x~x" (cpu-x c)))
+  (declare (cpu c))
+  (declare (instruction inst))
+  "TSX. Transfer stack to x"
+  (declare (ignore inst))
+  (set-zn c (setf (cpu-x c) (cpu-sp c))))
 
 (defun txs (c inst)
+  (declare (cpu c))
+  (declare (instruction inst))
   "TXS. Transfer x to stack"
   (declare (ignore inst))
-  (setf
-   (cpu-sp c)
-   (cpu-x c))
-  (format
-   nil
-   "TXS changed cpu-sp to 0x~x" (cpu-sp c)))
+  (setf (cpu-sp c) (cpu-x c)))
 
 (defun php (c inst)
+  (declare (cpu c))
   (declare (ignore inst))
-  (push-stack c (logior #x10 (make-byte-from-flags (cpu-sr c))))
-  (format
-   nil
-   "PHP pushed processor flags to the stack"))
+  (push-stack c (logior #x10 (the (unsigned-byte 8)(make-byte-from-flags (cpu-sr c))))))
 
 (defun pha (c inst)
+  (declare (cpu c))
   (declare (ignore inst))
-  (push-stack c (cpu-accumulator c))
-  (format
-   nil
-   "PHA pushed accumulator to the stack"))
+  (push-stack c (cpu-accumulator c)))
 
 (defun pla (c inst)
+  (declare (cpu c))
   (declare (ignore inst))
-  (set-zn c (setf (cpu-accumulator c) (pull-stack c)))
-  (format
-   nil
-   "PLA pulled accumulator from the stack"))
+  (set-zn c (setf (cpu-accumulator c) (pull-stack c))))
 
 (defun plp (c inst)
+  (declare (cpu c))
   (declare (ignore inst))
-  (setf (cpu-sr c) (make-flags-from-byte (logior #x20 (logand #xEF (pull-stack c)))))
-  (format
-   nil
-   "PLP pulled processor flags from the stack"))
+  (setf (cpu-sr c) (make-flags-from-byte (logior #x20 (logand #xEF (pull-stack c))))))
