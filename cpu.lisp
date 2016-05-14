@@ -159,7 +159,6 @@
     (logand a #xFF00)
     (logand b #xFF00))))
 
-;TODO: Give the CPU a console reference
 (defun read-cpu (c addr)
   "Reads the memory at the specified address"
   (cond
@@ -170,7 +169,7 @@
     ;APU and IO Registers
     ((<= addr #x401F) (funcall (aref (cpu-memory-get c) 1) addr)); THIS IS WRONG, CHANGE IT LATER
     ;Mapper Registers
-    ((<= addr #x5FFF) (progn (print "Reads from cpu to mapper unimplemented....") 0));(funcall (aref (cpu-memory-get c) 3) addr))
+    ((<= addr #x5FFF) (progn (print "Reads from cpu to mapper unimplemented....") 0))
     ;PRG RAM
     ((<= addr #x7FFF) (funcall (aref (cpu-memory-get c) 4) addr))
     ;PRG ROM
@@ -182,7 +181,6 @@
         (hi (read-cpu c (logior (logand addr #xFF00) (1+ (wrap-byte addr))))))
     (make-word-from-bytes hi lo)))
 
-;TODO: Write functions for this
 (defun write-cpu (c addr val)
   (cond
     ;CPU internal memory
@@ -194,7 +192,7 @@
      (funcall (aref (cpu-memory-set c) 2) addr val))
     ;Don't forget oam-dma
     ((= addr #x4014) (funcall (aref (cpu-memory-set c) 1) addr val))
-    (T 0)));(progn (print (format nil "CPU: We really can't write to 0x~x" addr))) 0)))
+    (T 0)))
 
 (defun reset (c)
   "Reset state of cpu"
@@ -217,7 +215,7 @@
   (setf (cpu-sp c) #xFD)
   (setf
    (cpu-pc c)
-   (wrap-word(make-word-from-bytes (read-cpu c #xFFFD) (read-cpu c #xFFFC)))))
+   (make-word-from-bytes (read-cpu c #xFFFD) (read-cpu c #xFFFC))))
 
 (defun pull-stack (c)
   "Empty stack pull"
@@ -253,36 +251,28 @@
      (wrap-word
       (+
        (cpu-pc c)
-       (cond
-         ((equal mode :implicit) 1)
-         ((equal mode :accumulator) 1)
-         ((equal mode :immediate) 2)
-         ((equal mode :zero-page) 2)
-         ((equal mode :absolute) 3)
-         ((equal mode :relative) 2)
-         ((equal mode :indirect) 3)
-         ((equal mode :zero-page-indexed-x) 2)
-         ((equal mode :zero-page-indexed-y) 2)
-         ((equal mode :absolute-indexed-x) 3)
-         ((equal mode :absolute-indexed-y) 3)
-         ((equal mode :indexed-indirect) 2)
-         ((equal mode :indirect-indexed) 2)
-         (T 1))))))) ;Silence warnings with this last line
+       (case mode
+         (:implicit 1)
+         (:accumulator 1)
+         (:immediate 2)
+         (:zero-page 2)
+         (:absolute 3)
+         (:relative 2)
+         (:indirect 3)
+         (:zero-page-indexed-x 2)
+         (:zero-page-indexed-y 2)
+         (:absolute-indexed-x 3)
+         (:absolute-indexed-y 3)
+         (:indexed-indirect 2)
+         (:indirect-indexed 2)
+         (otherwise 1)))))))
 
 (defun set-zn (c val)
   "Sets the zero or negative flag"
   ;If zero, set the bit
-  (setf
-   (flags-zero (cpu-sr c))
-   (if (= val 0)
-     T
-     nil))
+  (setf (flags-zero (cpu-sr c)) (= val 0))
   ;If the MSB is set, it's negative.
-  (setf
-   (flags-negative (cpu-sr c))
-   (if (= (ldb (byte 1 7) val) 1)
-     T
-     nil)))
+  (setf (flags-negative (cpu-sr c)) (= (ldb (byte 1 7) val) 1)))
 
 (defun get-address (c inst)
   "Get the address the instruction is talking about"
