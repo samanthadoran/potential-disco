@@ -418,32 +418,27 @@
      ;Get the number of cycles as per usual
      (aref cycles-per-instruction unmasked)
      ;Add page-cycles if we crossed a bound
-     (cond
-       ((equal mode :absolute-indexed-x)
-        (if (pages-differ
-             address
-             (wrap-word (- address (cpu-x c))))
+     (case mode
+       (:absolute-indexed-x
+        (if (pages-differ address (wrap-word (- address (cpu-x c))))
           page-cycles
           0))
-       ((equal mode :absolute-indexed-y)
-        (if (pages-differ
-             address
-             (wrap-word (- address (cpu-y c))))
+       (:absolute-indexed-y
+        (if (pages-differ address (wrap-word (- address (cpu-y c))))
           page-cycles
           0))
-       ((equal mode :indirect-indexed)
+       (:indirect-indexed
         (if (pages-differ
              address
              (wrap-word
-              (+
-               (cpu-x c)
+              (-
                (make-word-from-bytes
                 (instruction-hi-byte inst)
-                (instruction-lo-byte inst)))))
+                (instruction-lo-byte inst))
+               (cpu-y c))))
           page-cycles
           0))
-       ;Other modes do not suffer from this.
-       (T 0)))))
+       (otherwise 0)))))
 
 (defun execute (c inst)
   (let ((cycles (instruction-cycles c inst))
