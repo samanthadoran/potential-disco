@@ -5,10 +5,7 @@
   (let ((mode (instruction-addressing-mode inst))
         (val (get-value c inst))
         (addr (get-address c inst)))
-    (setf
-     (cpu-y c)
-     val)
-    (set-zn c (cpu-y c))
+    (set-zn c (setf (cpu-y c) val))
     (format
      nil
      "LDY with mode ~a~@[ from 0x~x~] loaded value 0x~x into cpu-y"
@@ -19,10 +16,7 @@
  (let ((mode (instruction-addressing-mode inst))
        (val (get-value c inst))
        (addr (get-address c inst)))
-   (setf
-    (cpu-accumulator c)
-    val)
-   (set-zn c (cpu-accumulator c))
+   (set-zn c (setf (cpu-accumulator c) val))
    (format
     nil
     "LDA with mode ~a~@[ from 0x~x~] loaded value 0x~x into accumulator"
@@ -33,10 +27,7 @@
  (let ((mode (instruction-addressing-mode inst))
        (val (get-value c inst))
        (addr (get-address c inst)))
-   (setf
-    (cpu-x c)
-    val)
-   (set-zn c (cpu-x c))
+   (set-zn c (setf (cpu-x c) val))
    (format
     nil
     "LDX with mode ~a~@[ from 0x~x~] loaded value 0x~x into cpu-x"
@@ -66,10 +57,7 @@
 (defun tax (c inst)
   "TAX. Transfer accumulator to x"
   (declare (ignore inst))
-  (setf
-   (cpu-x c)
-   (cpu-accumulator c))
-  (set-zn c (cpu-x c))
+  (set-zn c (setf (cpu-x c) (cpu-accumulator c)))
   (format
    nil
    "TAX changed x to 0x~x" (cpu-x c)))
@@ -77,10 +65,7 @@
 (defun tay (c inst)
  "TAY. Transfer accumulator to y"
  (declare (ignore inst))
- (setf
-  (cpu-y c)
-  (cpu-accumulator c))
- (set-zn c (cpu-y c))
+ (set-zn c (setf(cpu-y c) (cpu-accumulator c)))
  (format
   nil
   "TAX changed y to 0x~x" (cpu-y c)))
@@ -88,11 +73,7 @@
 (defun txa (c inst)
   "TXA. Transfer x to accumulator"
   (declare (ignore inst))
-  (set-zn
-   c
-   (setf
-    (cpu-accumulator c)
-    (cpu-x c)))
+  (set-zn c (setf (cpu-accumulator c) (cpu-x c)))
   (format
    nil
    "TXA changed accumulator to 0x~x" (cpu-accumulator c)))
@@ -100,11 +81,7 @@
 (defun tya (c inst)
   "TYA. Transfer y to accumulator"
   (declare (ignore inst))
-  (set-zn
-   c
-   (setf
-    (cpu-accumulator c)
-    (cpu-y c)))
+  (set-zn c (setf (cpu-accumulator c) (cpu-y c)))
   (format
    nil
    "TYA changed accumulator to 0x~x" (cpu-accumulator c)))
@@ -112,9 +89,7 @@
 (defun tsx (c inst)
  "TSX. Transfer stack to x"
  (declare (ignore inst))
- (setf
-  (cpu-x c)
-  (cpu-sp c))
+ (set-zn c (setf (cpu-x c) (cpu-sp c)))
  (format
   nil
   "TSX changed cpu-x to 0x~x" (cpu-x c)))
@@ -145,7 +120,7 @@
 
 (defun pla (c inst)
   (declare (ignore inst))
-  (setf (cpu-accumulator c) (pull-stack c))
+  (set-zn c (setf (cpu-accumulator c) (pull-stack c)))
   (format
    nil
    "PLA pulled accumulator from the stack"))

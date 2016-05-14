@@ -15,14 +15,13 @@
      (if (> (+ a b carry) 255)
        T nil))
 
-    (setf (cpu-accumulator c) (wrap-byte (+ a b carry)))
+    (set-zn c (setf (cpu-accumulator c) (wrap-byte (+ a b carry))))
 
     (setf
      (flags-overflow (cpu-sr c))
      (if (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0)))
        T nil))
 
-    (set-zn c (cpu-accumulator c))
     (format
      nil
      "ADC with mode ~a~@[ from 0x~x~] that holds value 0x~x. Produces value 0x~x"
@@ -39,8 +38,7 @@
     (if (>= (- b a (1- carry)) 0)
       T nil))
 
-   (setf (cpu-accumulator c) (wrap-byte (- b a (1- carry))))
-   (set-zn c (cpu-accumulator c))
+   (set-zn c (setf (cpu-accumulator c) (wrap-byte (- b a (1- carry)))))
 
    (setf
     (flags-overflow (cpu-sr c))
@@ -99,12 +97,13 @@
      (flags-carry (cpu-sr c))
      (if (= 1 (ldb (byte 1 7) val))
        T nil))
-    (if (equal mode :accumulator)
+    (set-zn
+     c
+     (if (equal mode :accumulator)
       (setf
        (cpu-accumulator c)
        (wrap-byte (logior carry (ash val 1))))
-      (write-cpu c addr (wrap-byte (logior carry (ash val 1)))))
-    (set-zn c (wrap-byte (logand carry (ash val 1))))
+      (write-cpu c addr (wrap-byte (logior carry (ash val 1))))))
     (format
      nil
      "ROL with mode ~a~@[ from 0x~x~] that holds value 0x~x"
@@ -120,12 +119,13 @@
     (flags-carry (cpu-sr c))
     (if (= 1 (ldb (byte 1 0) val))
       T nil))
-   (if (equal mode :accumulator)
+   (set-zn
+    c
+    (if (equal mode :accumulator)
      (setf
       (cpu-accumulator c)
       (wrap-byte (logior carry (ash val -1))))
-     (write-cpu c addr (wrap-byte (logior carry (ash val -1)))))
-   (set-zn c (wrap-byte (logior carry (ash val -1))))
+     (write-cpu c addr (wrap-byte (logior carry (ash val -1))))))
    (format
     nil
     "ROR with mode ~a~@[ from 0x~x~] that holds value 0x~x"
@@ -136,11 +136,7 @@
   (let ((mode (instruction-addressing-mode inst))
         (val (get-value c inst))
         (addr (get-address c inst)))
-    (set-zn
-     c
-     (setf
-      (cpu-accumulator c)
-      (logior (cpu-accumulator c) val)))
+    (set-zn c (setf (cpu-accumulator c) (logior (cpu-accumulator c) val)))
   (format
    nil
    "ORA with mode ~a~@[ from 0x~x~] that holds value 0x~x. Produces value 0x~x"
@@ -151,11 +147,7 @@
   (let ((mode (instruction-addressing-mode inst))
         (val (get-value c inst))
         (addr (get-address c inst)))
-    (set-zn
-     c
-     (setf
-      (cpu-accumulator c)
-      (logxor (cpu-accumulator c) val)))
+    (set-zn c (setf (cpu-accumulator c) (logxor (cpu-accumulator c) val)))
     (format
      nil
      "EOR with mode ~a~@[ from 0x~x~] that holds value 0x~x. Produces value 0x~x"
@@ -166,11 +158,7 @@
   (let ((mode (instruction-addressing-mode inst))
         (val (get-value c inst))
         (addr (get-address c inst)))
-    (set-zn
-     c
-     (setf
-      (cpu-accumulator c)
-      (logand (cpu-accumulator c) val)))
+    (set-zn c (setf (cpu-accumulator c) (logand (cpu-accumulator c) val)))
     (format
      nil
      "ANDA with mode ~a~@[ from 0x~x~] that holds value 0x~x. Produces value 0x~x"
@@ -230,10 +218,7 @@
 (defun dey (c inst)
   "DEY: Decrement y register"
   (declare (ignore inst))
-  (setf
-   (cpu-y c)
-   (wrap-byte (- (cpu-y c) 1)))
-  (set-zn c (wrap-byte (cpu-y c)))
+  (set-zn c (setf (cpu-y c) (wrap-byte (- (cpu-y c) 1))))
   (format
    nil
    "DEY. Decremented cpu-y to 0x~x"
@@ -242,10 +227,7 @@
 (defun dex (c inst)
   "DEY: Decrement y register"
   (declare (ignore inst))
-  (setf
-   (cpu-x c)
-   (wrap-byte (- (cpu-x c) 1)))
-  (set-zn c (wrap-byte (cpu-x c)))
+  (set-zn c (setf (cpu-x c) (wrap-byte (- (cpu-x c) 1))))
   (format
    nil
    "DEX. Decremented cpu-x to 0x~x"
@@ -269,22 +251,14 @@
 
 (defun inx (c inst)
   (declare (ignore inst))
-  (set-zn
-   c
-   (setf
-    (cpu-x c)
-    (wrap-byte (1+ (cpu-x c)))))
+  (set-zn c (setf (cpu-x c) (wrap-byte (1+ (cpu-x c)))))
   (format
    nil
    "INX, now holds 0x~x." (cpu-x c)))
 
 (defun iny (c inst)
   (declare (ignore inst))
-  (set-zn
-   c
-   (setf
-    (cpu-y c)
-    (wrap-byte (1+ (cpu-y c)))))
+  (set-zn c (setf (cpu-y c) (wrap-byte (1+ (cpu-y c)))))
   (format
    nil
    "INY, now holds 0x~x." (cpu-y c)))
