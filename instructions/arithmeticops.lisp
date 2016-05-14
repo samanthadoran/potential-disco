@@ -170,6 +170,7 @@
        (val (get-value c inst))
        (addr (get-address c inst)))
    (set-zn c (logand val (cpu-accumulator c)))
+   (setf (flags-negative (cpu-sr c)) (logand 1 (ash val -7)))
    (setf (flags-overflow (cpu-sr c)) (logand 1 (ash val -6)))
    (format
     nil
