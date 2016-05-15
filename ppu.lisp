@@ -11,9 +11,9 @@
   (:use :cl :cl-user)
   (:export #:step-ppu #:make-ppu #:reset-ppu #:read-register #:write-register
            #:ppu-trigger-nmi-callback #:ppu-front #:ppu-back #:ppu-frame
-           #:color-r #:color-g #:color-b #:read-palette #:write-palette
+           #:color-r #:color-g #:color-b #:color #:read-palette #:write-palette
            #:ppu-memory-get #:ppu-memory-set #:ppu-name-table-data
-           #:ppu-oam-dma-callback #:ppu-oam-stall-adder))
+           #:ppu-oam-dma-callback #:ppu-oam-stall-adder #:screen-width #:screen-height))
 
 (in-package :NES-ppu)
 (declaim (optimize (speed 3) (safety 1)))
@@ -72,12 +72,16 @@
 
 (defstruct ppu
   "A model picture processing unit"
-  (front (make-array '(240 256) :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0)))
-  (back (make-array '(240 256) :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0)))
+  (front
+   (make-array #xF000 :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0))
+   :type (simple-array color 1))
+  (back
+   (make-array #xF000 :element-type 'color :initial-element (make-color :r 0 :g 0 :b 0))
+   :type (simple-array color 1))
 
   (cycle 0 :type (unsigned-byte 16))
   (scanline 0 :type (unsigned-byte 16))
-  (frame 0)
+  (frame 0 :type (unsigned-byte 16))
 
   (memory-get
    (make-array 3 :element-type 'function :initial-element (lambda ()))
@@ -542,9 +546,7 @@
         (setf data (ash data 4))
         (setf
          data
-         (logand
-          #xFFFFFFFF
-          (logior a p1 p2 data)))))
+         (logior a p1 p2 data))))
     (setf (ppu-tile-data p) (logior (ppu-tile-data p) data))))
 
 (defun fetch-tile-data (p)
@@ -617,7 +619,7 @@
              (setf color (logior sprite #x10))
              (setf color background)))))
        (setf
-        (aref (ppu-back p) y x)
+        (aref (ppu-back p) (+ (* y screen-width) x))
         (aref
          (the (simple-array color 1) *palette*)
          (mod (read-palette p (logand #xFFFF color)) 64)))))))
@@ -742,7 +744,7 @@
            (= (ppu-cycle p) 339))
       (setf (ppu-cycle p) 0)
       (setf (ppu-scanline p) 0)
-      (incf (ppu-frame p))
+      (setf (ppu-frame p) (wrap-word (1+ (ppu-frame p))))
       (setf (ppu-f p) (logxor (ppu-f p) 1))
       (return-from tick 0)))
   (incf (ppu-cycle p))
@@ -755,7 +757,7 @@
     ;And finally do housework if we need to go back to top
     (when (> (ppu-scanline p) 261)
       (setf (ppu-scanline p) 0)
-      (incf (ppu-frame p))
+      (setf (ppu-frame p) (wrap-word (1+ (ppu-frame p))))
       (setf (ppu-f p) (logxor (ppu-f p) 1)))))
 
 (defun step-ppu (p)

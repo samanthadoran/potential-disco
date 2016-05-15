@@ -14,15 +14,20 @@
   (cart (NES-cartridge:make-cartridge))
   (ppu (NES-ppu:make-ppu)))
 
-(defvar mirror-lookup (make-array '(5 4) :element-type '(unsigned-byte 2) :initial-contents '( (0 0 1 1) (0 1 0 1) (0 0 0 0) (1 1 1 1) (0 1 2 3))))
+(defvar mirror-lookup
+  (make-array
+   20
+   :element-type '(unsigned-byte 2)
+   :initial-contents '(0 0 1 1 0 1 0 1 0 0 0 0 1 1 1 1 0 1 2 3)))
 
 (defun mirror-address (mode addr)
   (declare ((unsigned-byte 16) addr))
+  (declare ((unsigned-byte 8) mode))
   (let* ((address (mod (- addr #x2000) #x1000))
         (table (floor address #x0400))
         (offset (mod address #x0400)))
     (declare ((unsigned-byte 16) address table offset))
-    (logand #xFFFF (+ #x2000 offset (* #x0400 (the (unsigned-byte 3) (aref mirror-lookup mode table)))))))
+    (logand #xFFFF (+ #x2000 offset (* #x0400 (the (unsigned-byte 3) (aref (the (simple-array (unsigned-byte 2) 1)mirror-lookup) (+ (* mode 4) table))))))))
 
 (defun ppu-to-name-table-read (n)
   (declare (nes n))
@@ -107,10 +112,10 @@
   (lambda (addr)
           (declare ((unsigned-byte 16) addr))
           (aref
-           (NES-cartridge:cartridge-prg-rom (nes-cart n))
+           (the (simple-array (unsigned-byte 8) 1) (NES-cartridge:cartridge-prg-rom (nes-cart n)))
            (mod
             addr
-            (array-dimension (NES-cartridge:cartridge-prg-rom (nes-cart n)) 0)))))
+            (array-dimension (the (simple-array (unsigned-byte 8) 1)(NES-cartridge:cartridge-prg-rom (nes-cart n))) 0)))))
 
 (defun cpu-to-cart-write (n)
   (declare (nes n))
@@ -119,10 +124,10 @@
           (declare ((unsigned-byte 8) val))
           (setf
            (aref
-            (NES-cartridge:cartridge-prg-rom (nes-cart n))
+            (the (simple-array (unsigned-byte 8) 1)(NES-cartridge:cartridge-prg-rom (nes-cart n)))
             (mod
              addr
-             (array-dimension (NES-cartridge:cartridge-prg-rom (nes-cart n)) 0)))
+             (array-dimension (the (simple-array (unsigned-byte 8) 1)(NES-cartridge:cartridge-prg-rom (nes-cart n))) 0)))
            val)))
 
 (defun cpu-to-ppu-read (n)
@@ -197,12 +202,12 @@
 
 (defun step-frame (n)
   (declare (nes n))
-  (let ((frame (logand #xFFFF (NES-ppu:ppu-frame (nes-ppu n)))))
+  (let ((frame (NES-ppu:ppu-frame (nes-ppu n))))
     (declare ((unsigned-byte 16) frame))
     (loop
       do
       (progn
-       (when (not (= frame (the (unsigned-byte 16)(logand #xFFFF (NES-ppu:ppu-frame (nes-ppu n)))))) (return))
+       (when (not (= frame (NES-ppu:ppu-frame (nes-ppu n)))) (return))
        (step-nes n 1)))))
 
 (defun test-render-clear (renderer)
@@ -215,7 +220,7 @@
     (loop for x from 0 to 255
       do
       (sdl2:with-points ((p x y))
-        (let* ((color (aref front y x))
+        (let* ((color (aref (the (simple-array NES-ppu:color 1)front) (+ (* y 256) x)))
                (r (color-r color))
                (g (color-g color))
                (b (color-b color)))
