@@ -83,10 +83,16 @@
   (y 0 :type (unsigned-byte 8))
   (pc 0 :type (unsigned-byte 16))
   (sp 0 :type (unsigned-byte 8))
-  (sr (make-flags))
-  (memory-get (make-array 6 :element-type 'function :initial-element (lambda ())))
-  (memory-set (make-array 3 :element-type 'function :initial-element (lambda ())))
-  (memory (make-array #x800 :element-type '(unsigned-byte 8)))
+  (sr (make-flags) :type flags)
+  (memory-get
+   (make-array 6 :element-type 'function :initial-element (lambda ()))
+   :type (simple-array function 1))
+  (memory-set
+   (make-array 3 :element-type 'function :initial-element (lambda ()))
+   :type (simple-array function 1))
+  (memory
+   (make-array #x800 :element-type '(unsigned-byte 8))
+   :type (simple-array (unsigned-byte 8) 1))
   (interrupt :none))
 
 (defstruct instruction
@@ -136,7 +142,7 @@
 
 (defun make-flags-from-byte (val)
   (declare ((unsigned-byte 8) val))
-  (the flags (make-flags
+  (make-flags
    :carry (= (ldb (byte 1 0) val) 1)
    :zero (= (ldb (byte 1 1) val) 1)
    :interrupt (= (ldb (byte 1 2) val) 1)
@@ -144,7 +150,7 @@
    :soft-interrupt (= (ldb (byte 1 4) val) 1)
    :unused (= (ldb (byte 1 5) val) 1)
    :overflow (= (ldb (byte 1 6) val) 1)
-   :negative (= (ldb (byte 1 7) val) 1))))
+   :negative (= (ldb (byte 1 7) val) 1)))
 
 (defun to-signed-byte-8 (val)
   (declare ((unsigned-byte 8) val))
@@ -169,11 +175,11 @@
   "Reads the memory at the specified address"
   (cond
     ;CPU internal memory
-    ((<= addr #x1FFF) (funcall (the function (aref (the (simple-array function 1) (cpu-memory-get c)) 0)) addr))
+    ((<= addr #x1FFF) (funcall (aref (cpu-memory-get c) 0) addr))
     ;PPU
-    ((<= addr #x3FFF) (funcall (the function (aref (the (simple-array function 1) (cpu-memory-get c)) 1)) addr))
+    ((<= addr #x3FFF) (funcall (aref (cpu-memory-get c) 1) addr))
     ;DMA
-    ((= addr #x4014) (funcall (the function (aref (the (simple-array function 1) (cpu-memory-get c)) 3)) addr))
+    ((= addr #x4014) (funcall (aref (cpu-memory-get c) 3) addr))
     ;Try to get the controller to do something to load a game.
     ((= addr #x4016) (random 2))
     ;APU and IO Registers
@@ -183,7 +189,7 @@
     ;SAVE RAM
     ((<= addr #x7FFF) (progn (print "Reads from cpu to save ram unimplemented....") 0))
     ;PRG ROM
-    ((<= addr #xFFFF) (funcall (the function (aref (the (simple-array function 1) (cpu-memory-get c)) 5)) addr))))
+    ((<= addr #xFFFF) (funcall (aref (cpu-memory-get c) 5) addr))))
 
 (defun read16-bug (c addr)
   (declare (cpu c))
@@ -199,14 +205,14 @@
   (declare ((unsigned-byte 8) val))
   (cond
     ;CPU internal memory
-    ((<= addr #x1FFF) (funcall (the function (aref (the (simple-array function 1) (cpu-memory-set c)) 0)) addr val))
+    ((<= addr #x1FFF) (funcall (aref (cpu-memory-set c) 0) addr val))
     ;PPU Registers
-    ((<= addr #x3FFF) (funcall (the function (aref (the (simple-array function 1) (cpu-memory-set c)) 1)) addr val))
+    ((<= addr #x3FFF) (funcall (aref (cpu-memory-set c) 1) addr val))
     ;SAVE RAM
     ((and (<= addr #x7FFF) (>= addr #x6000))
      (progn (print "Writes to save ram unimplemented...") 0))
     ;Don't forget oam-dma
-    ((= addr #x4014) (funcall (the function (aref (the (simple-array function 1) (cpu-memory-set c)) 1)) addr val))
+    ((= addr #x4014) (funcall (aref (cpu-memory-set c) 1) addr val))
     (T 0)))
 
 (defun reset (c)
@@ -238,16 +244,15 @@
   (declare (cpu c))
   "Empty stack pull"
   (setf (cpu-sp c) (wrap-byte (1+ (cpu-sp c))))
-  (the (unsigned-byte 8) (aref (cpu-memory c) (logior (cpu-sp c) #x100))))
+  (aref (cpu-memory c) (logior (cpu-sp c) #x100)))
 
 (defun push-stack (c val)
   (declare (cpu c))
   (declare ((unsigned-byte 8) val))
   "Put a value on the stack and then push it forwards"
-  (declare ((unsigned-byte 8) val))
   (setf
    (aref
-    (the (simple-array (unsigned-byte 8) 1)(cpu-memory c))
+    (cpu-memory c)
     (logior (cpu-sp c) #x100))
    val)
   (setf
@@ -328,20 +333,20 @@
          (:absolute-indexed-x
           (wrap-word
            (+
-            (the (unsigned-byte 16) (make-word-from-bytes hi-byte lo-byte))
+            (make-word-from-bytes hi-byte lo-byte)
             (cpu-x c))))
          ;Add the y register to the supplied two byte address
          (:absolute-indexed-y
           (wrap-word
            (+
-            (the (unsigned-byte 16) (make-word-from-bytes hi-byte lo-byte))
+            (make-word-from-bytes hi-byte lo-byte)
             (cpu-y c))))
          ;Get the address contained at lo-byte + x
          (:indexed-indirect
-          (the (unsigned-byte 16) (read16-bug c (wrap-word (+ (the (unsigned-byte 8) (read-cpu c lo-byte)) (cpu-x c))))))
+          (read16-bug c (wrap-word (+ (the (unsigned-byte 8) (read-cpu c lo-byte)) (cpu-x c)))))
          ;Get the address containted at lo-byte + y
          (:indirect-indexed
-          (the (unsigned-byte 16) (wrap-word (+ (cpu-y c) (read16-bug c lo-byte)))))
+          (wrap-word (+ (cpu-y c) (read16-bug c lo-byte))))
          (otherwise 0))))
 
 (defun get-value (c inst)
@@ -357,10 +362,10 @@
 (defun fetch (c)
   (declare (cpu c))
   "Fetch the next instruction from memory"
-  (the instruction (make-instruction
+  (make-instruction
    :unmasked-opcode (read-cpu c (cpu-pc c))
    :lo-byte (read-cpu c (+ (cpu-pc c) 1))
-   :hi-byte (read-cpu c (+ (cpu-pc c) 2)))))
+   :hi-byte (read-cpu c (+ (cpu-pc c) 2))))
 
 (defun determine-addressing-mode (opcode)
   (declare ((unsigned-byte 8) opcode))
@@ -436,12 +441,12 @@
         (setf addressing-mode :implicit)
         (setf masked-opcode opcode))))
     ;Make the instruction
-    (the instruction (make-instruction
+    (make-instruction
      :addressing-mode addressing-mode
      :opcode masked-opcode
      :unmasked-opcode opcode
      :hi-byte hi-byte
-     :lo-byte lo-byte))))
+     :lo-byte lo-byte)))
 
 (defun instruction-cycles (c inst)
   (declare (cpu c))
@@ -449,13 +454,16 @@
   (let* ((address (get-address c inst))
         (mode (instruction-addressing-mode inst))
         (unmasked (instruction-unmasked-opcode inst))
-        (page-cycles (aref instruction-page-cycles unmasked)))
+        (page-cycles
+         (aref
+          (the (simple-array (unsigned-byte 8) 1) instruction-page-cycles)
+          unmasked)))
     (declare ((unsigned-byte 16) address))
     (declare ((unsigned-byte 8) unmasked page-cycles))
     (declare (type (simple-array (unsigned-byte 8) 1) cycles-per-instruction))
     (+
      ;Get the number of cycles as per usual
-     (the (unsigned-byte 8) (aref cycles-per-instruction unmasked))
+     (aref cycles-per-instruction unmasked)
      ;Add page-cycles if we crossed a bound
      (case mode
        (:absolute-indexed-x
