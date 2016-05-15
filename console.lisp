@@ -22,7 +22,7 @@
         (table (floor address #x0400))
         (offset (mod address #x0400)))
     (declare ((unsigned-byte 16) address table offset))
-    (logand #xFFFF (+ #x2000 offset (* #x0400 (aref mirror-lookup mode table))))))
+    (logand #xFFFF (+ #x2000 offset (* #x0400 (the (unsigned-byte 3) (aref mirror-lookup mode table)))))))
 
 (defun ppu-to-name-table-read (n)
   (declare (nes n))
@@ -186,10 +186,10 @@
 
 (defun step-nes (n steps)
   (declare (nes n))
-  (declare (integer steps))
+  (declare ((unsigned-byte 32) steps))
   (loop for s from 1 to steps
     do
-    (let ((cycles (* 3 (6502-CPU:step-cpu (nes-cpu n)))))
+    (let ((cycles (* 3 (the (unsigned-byte 8)(6502-CPU:step-cpu (nes-cpu n))))))
       (declare ((unsigned-byte 8) cycles))
       (loop for i from 1 to cycles
         do
@@ -197,11 +197,12 @@
 
 (defun step-frame (n)
   (declare (nes n))
-  (let ((frame (NES-ppu:ppu-frame (nes-ppu n))))
+  (let ((frame (logand #xFFFF (NES-ppu:ppu-frame (nes-ppu n)))))
+    (declare ((unsigned-byte 16) frame))
     (loop
       do
       (progn
-       (when (not (= frame (NES-ppu:ppu-frame (nes-ppu n)))) (return))
+       (when (not (= frame (the (unsigned-byte 16)(logand #xFFFF (NES-ppu:ppu-frame (nes-ppu n)))))) (return))
        (step-nes n 1)))))
 
 (defun test-render-clear (renderer)
@@ -209,9 +210,9 @@
        (sdl2:render-clear renderer)))
 
 (defun render-nes (front renderer)
-  (loop for y from 0 to (- (array-dimension front 0) 1)
+  (loop for y from 0 to 239
     do
-    (loop for x from 0 to (- (array-dimension front 1) 1)
+    (loop for x from 0 to 255
       do
       (sdl2:with-points ((p x y))
         (let* ((color (aref front y x))
