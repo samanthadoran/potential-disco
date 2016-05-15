@@ -8,9 +8,9 @@
   (set-zn c (setf (cpu-y c) (get-value c inst))))
 
 (defun lda (c inst)
-(declare (cpu c))
-(declare (instruction inst))
- "LDA. Load value to accumulator"
+  (declare (cpu c))
+  (declare (instruction inst))
+  "LDA. Load value to accumulator"
   (set-zn c (setf (cpu-accumulator c) (get-value c inst))))
 
 (defun ldx (c inst)
