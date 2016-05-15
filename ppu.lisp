@@ -79,12 +79,22 @@
   (scanline 0 :type (unsigned-byte 16))
   (frame 0)
 
-  (memory-get (make-array 3 :element-type 'function :initial-element (lambda ())))
-  (memory-set (make-array 3 :element-type 'function :initial-element (lambda ())))
+  (memory-get
+   (make-array 3 :element-type 'function :initial-element (lambda ()))
+   :type (simple-array function 1))
+  (memory-set
+   (make-array 3 :element-type 'function :initial-element (lambda ()))
+   :type (simple-array function 1))
 
-  (palette-data (make-array 32 :element-type '(unsigned-byte 8)))
-  (name-table-data (make-array 2048 :element-type '(unsigned-byte 8)))
-  (oam-data (make-array 256 :element-type '(unsigned-byte 8)))
+  (palette-data
+   (make-array 32 :element-type '(unsigned-byte 8))
+   :type (simple-array (unsigned-byte 8) 1))
+  (name-table-data
+   (make-array 2048 :element-type '(unsigned-byte 8))
+   :type (simple-array (unsigned-byte 8) 1))
+  (oam-data
+   (make-array 256 :element-type '(unsigned-byte 8))
+   :type (simple-array (unsigned-byte 8) 1))
 
   ;Registers
   (v 0 :type (unsigned-byte 16)) ;Current vram address
@@ -111,10 +121,18 @@
 
   ;Sprites
   (sprite-count 0 :type (unsigned-byte 8))
-  (sprite-patterns (make-array 8 :element-type '(unsigned-byte 32)))
-  (sprite-positions (make-array 8 :element-type '(unsigned-byte 8)))
-  (sprite-priorities (make-array 8 :element-type '(unsigned-byte 8)))
-  (sprite-indexes (make-array 8 :element-type '(unsigned-byte 8)))
+  (sprite-patterns
+   (make-array 8 :element-type '(unsigned-byte 32))
+   :type (simple-array (unsigned-byte 32) 1))
+  (sprite-positions
+   (make-array 8 :element-type '(unsigned-byte 8))
+   :type (simple-array (unsigned-byte 8) 1))
+  (sprite-priorities
+   (make-array 8 :element-type '(unsigned-byte 8))
+   :type (simple-array (unsigned-byte 8) 1))
+  (sprite-indexes
+   (make-array 8 :element-type '(unsigned-byte 8))
+   :type (simple-array (unsigned-byte 8) 1))
 
   ;$2000 PPU Control
   (flag-name-table 0 :type (unsigned-byte 2))
@@ -152,11 +170,11 @@
   (setf addr (mod addr #x4000))
   (cond
     ;Mapper
-    ((< addr #x2000) (funcall (the function (aref (the (simple-array function 1) (ppu-memory-get p)) 0)) addr))
+    ((< addr #x2000) (funcall (aref (ppu-memory-get p) 0) addr))
     ;Name table data
-    ((< addr #x3F00) (funcall (the function (aref (the (simple-array function 1) (ppu-memory-get p)) 1)) addr))
+    ((< addr #x3F00) (funcall (aref (ppu-memory-get p) 1) addr))
     ;Palette data
-    ((< addr #x4000) (funcall (the function (aref (the (simple-array function 1) (ppu-memory-get p)) 2)) addr))))
+    ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))))
 
 (defun write-ppu (p addr val)
   (declare (ppu p))
@@ -165,20 +183,20 @@
   (setf addr (mod addr #x4000))
   (cond
     ;Mapper
-    ((< addr #x2000) (funcall (the function (aref (the (simple-array function 1) (ppu-memory-set p)) 0)) addr val))
+    ((< addr #x2000) (funcall (aref (ppu-memory-set p) 0) addr val))
     ;Name table data
-    ((< addr #x3F00) (funcall (the function (aref (the (simple-array function 1) (ppu-memory-set p)) 1)) addr val))
+    ((< addr #x3F00) (funcall (aref (ppu-memory-set p) 1) addr val))
     ;Palette data
-    ((< addr #x4000) (funcall (the function (aref (the (simple-array function 1) (ppu-memory-set p)) 2)) addr val))))
+    ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))))
 
 (defun read-palette (p address)
   (declare (ppu p))
   (declare ((unsigned-byte 16) address))
-  (the (unsigned-byte 8) (aref
-   (the (simple-array (unsigned-byte 8) 1)(ppu-palette-data p))
+  (aref
+   (ppu-palette-data p)
    (if (and (>= address 16) (= (mod address 4) 0))
      (logand #xFFFF (- address 16))
-     address))))
+     address)))
 
 (defun write-palette (p address value)
   (declare (ppu p))
@@ -186,7 +204,7 @@
   (declare ((unsigned-byte 8) value))
   (setf
    (aref
-    (the (simple-array (unsigned-byte 8) 1)(ppu-palette-data p))
+    (ppu-palette-data p)
     (if (and (>= address 16) (= (mod address 4) 0))
       (logand #xFFFF (- address 16))
       address))
@@ -278,12 +296,12 @@
 
 (defun read-oam-data (p)
   (declare (ppu p))
-  (the (unsigned-byte 8) (aref (the (simple-array (unsigned-byte 8) 1) (ppu-oam-data p)) (ppu-oam-address p))))
+  (aref (ppu-oam-data p) (ppu-oam-address p)))
 
 (defun write-oam-data (p value)
   (declare (ppu p))
   (declare ((unsigned-byte 8) value))
-  (setf (aref (the (simple-array (unsigned-byte 8) 1)(ppu-oam-data p)) (ppu-oam-address p)) value)
+  (setf (aref (ppu-oam-data p) (ppu-oam-address p)) value)
   (setf (ppu-oam-address p) (wrap-byte (1+ (ppu-oam-address p)))))
 
 (defun write-scroll (p value)
@@ -382,7 +400,7 @@
       do
       (progn
        (setf
-        (aref (the (simple-array (unsigned-byte 8) 1)(ppu-oam-data p)) (ppu-oam-address p))
+        (aref (ppu-oam-data p) (ppu-oam-address p))
         (funcall (ppu-oam-dma-callback p) address))
        (setf (ppu-oam-address p) (wrap-byte (1+ (ppu-oam-address p))))
        (setf address (wrap-word (1+ address)))))
@@ -518,6 +536,7 @@
       (let ((a (ppu-attribute-table p))
             (p1 (ash (logand #x80 (ppu-low-tile p)) -7))
             (p2 (ash (logand #x80 (ppu-high-tile p)) -6)))
+        (declare ((unsigned-byte 8) a p1 p2))
         (setf (ppu-low-tile p) (wrap-byte (ash (ppu-low-tile p) 1)))
         (setf (ppu-high-tile p) (wrap-byte (ash (ppu-high-tile p) 1)))
         (setf data (ash data 4))
@@ -553,7 +572,7 @@
   (loop for i from 0 to (- (ppu-sprite-count p) 1)
     do
     (progn
-     (let ((offset (- (- (ppu-cycle p) 1) (to-signed-byte-8 (aref (the (simple-array (unsigned-byte 8)) (ppu-sprite-positions p)) i)))))
+     (let ((offset (- (- (ppu-cycle p) 1) (to-signed-byte-8 (aref (ppu-sprite-positions p) i)))))
        (when (= (ppu-flag-show-sprites p) 0)
          (return-from sprite-pixel (list 0 0)))
        (when (and (>= offset 0) (<= offset 7))
@@ -564,7 +583,7 @@
                  (logand
                   #x0F
                   (ash
-                   (aref (the (simple-array (unsigned-byte 32) 1)(ppu-sprite-patterns p)) i)
+                   (aref (ppu-sprite-patterns p) i)
                    (* -1 (wrap-byte (* (wrap-byte (* offset 4))))))))))
            (when (not (= (mod color 4) 0))
              (return-from sprite-pixel (list (wrap-byte i) color))))))))
@@ -575,6 +594,7 @@
   (destructuring-bind
    (i sprite)
    (sprite-pixel p)
+   (declare ((unsigned-byte 8) i sprite))
    (let ((x (- (ppu-cycle p) 1))
         (y (ppu-scanline p))
         (background (background-pixel p)))
@@ -591,18 +611,22 @@
          ((and b (not s)) (setf color background))
          (T
           (progn
-           (when (and (< x 255) (= (aref (the (simple-array (unsigned-byte 8)) (ppu-sprite-indexes p)) i) 0))
+           (when (and (< x 255) (= (aref (ppu-sprite-indexes p) i) 0))
              (setf (ppu-flag-sprite-zero-hit p) 1))
-           (if (= (aref (the (simple-array (unsigned-byte 8)) (ppu-sprite-priorities p)) i) 0)
+           (if (= (aref (ppu-sprite-priorities p) i) 0)
              (setf color (logior sprite #x10))
              (setf color background)))))
-       (setf (aref (ppu-back p) y x) (aref *palette* (mod (read-palette p (logand #xFFFF color)) 64)))))))
+       (setf
+        (aref (ppu-back p) y x)
+        (aref
+         (the (simple-array color 1) *palette*)
+         (mod (read-palette p (logand #xFFFF color)) 64)))))))
 
 (defun fetch-sprite-pattern (p i r)
   (declare (ppu p))
   (declare ((signed-byte 16) i r))
-  (let* ((tile (aref (the (simple-array (unsigned-byte 8)) (ppu-oam-data p)) (1+ (* i 4))))
-        (attributes (aref (the (simple-array (unsigned-byte 8)) (ppu-oam-data p)) (+ 2 (* i 4))))
+  (let* ((tile (aref (ppu-oam-data p) (1+ (* i 4))))
+        (attributes (aref (ppu-oam-data p) (+ 2 (* i 4))))
         (address #x0000)
         (a (ash (logand attributes 3) 2))
         (row r))
@@ -667,24 +691,24 @@
     (loop for i from 0 to 63
       do
       (progn
-       (let* ((y (the (unsigned-byte 8) (aref (the (simple-array (unsigned-byte 8)) (ppu-oam-data p)) (* i 4))))
-             (a (the (unsigned-byte 8) (aref (the (simple-array (unsigned-byte 8)) (ppu-oam-data p)) (+ 2 (* i 4)))))
-             (x (the (unsigned-byte 8) (aref (the (simple-array (unsigned-byte 8)) (ppu-oam-data p)) (+ 3 (* i 4)))))
+       (let* ((y (aref (ppu-oam-data p) (* i 4)))
+             (a (aref (ppu-oam-data p) (+ 2 (* i 4))))
+             (x (aref (ppu-oam-data p) (+ 3 (* i 4))))
              (row (- (ppu-scanline p) y)))
          (when (and (>= row 0) (< row h))
            (progn
            (when (< count 8)
              (setf
-              (aref (the (simple-array (unsigned-byte 32) 1)(ppu-sprite-patterns p)) count)
+              (aref (ppu-sprite-patterns p) count)
               (fetch-sprite-pattern p i row))
              (setf
-              (aref (the (simple-array (unsigned-byte 8)) (ppu-sprite-positions p)) count)
+              (aref (ppu-sprite-positions p) count)
               x)
              (setf
-              (aref (the (simple-array (unsigned-byte 8)) (ppu-sprite-priorities p)) count)
+              (aref (ppu-sprite-priorities p) count)
               (logand 1 (ash a -5)))
              (setf
-              (aref (the (simple-array (unsigned-byte 8)) (ppu-sprite-indexes p)) count)
+              (aref (ppu-sprite-indexes p) count)
               (wrap-byte i)))
            (incf count))))))
     (when (> count 8)
