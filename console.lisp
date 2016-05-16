@@ -232,9 +232,9 @@
                 (r (color-r color))
                 (g (color-g color))
                 (b (color-b color))
-                (col (logior (ash b 24) (ash g 16) (ash r 8) #xFF)))
-           (setf (aref pixels (+ (* y 265) x)) col))))
-     (sdl2:update-texture tex (static-vectors:static-vector-pointer pixels) :width 1024)
+                (col (logior (ash #xFF 24) (ash r 16) (ash g 8) (ash b 0))))
+           (setf (aref pixels (+ (* y 256) x)) col))))
+     (sdl2:update-texture tex (static-vectors:static-vector-pointer pixels) :rect rect :width (* 256 4))
      (sdl2:render-copy renderer tex :dest-rect rect))))
 
 
