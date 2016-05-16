@@ -154,7 +154,7 @@
 (defun console-on (n)
   (declare (nes n))
   (NES-ppu:reset-ppu (nes-ppu n))
-  (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/vb.nes"))
+  (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/smb.nes"))
   (setf (NES-ppu:ppu-trigger-nmi-callback (nes-ppu n)) (6502-cpu:trigger-nmi-callback (nes-cpu n)))
   (setf (NES-ppu:ppu-oam-dma-callback (nes-ppu n)) (lambda (addr) (6502-cpu:read-cpu (nes-cpu n) addr)))
   (setf (NES-ppu:ppu-oam-stall-adder (nes-ppu n)) (6502-cpu:add-to-stall (nes-cpu n)))
@@ -223,22 +223,22 @@
               renderer
               :argb8888
               :static
-              256
-              240))
-        (pixels (static-vectors:make-static-vector (* 256 240) :element-type '(unsigned-byte 32) :initial-element 0))
-        (rect (sdl2:make-rect 0 0 256 240)))
+              NES-ppu:screen-width
+              NES-ppu:screen-height))
+        (pixels (static-vectors:make-static-vector (* NES-ppu:screen-width NES-ppu:screen-height) :element-type '(unsigned-byte 32) :initial-element 0))
+        (rect (sdl2:make-rect 0 0 NES-ppu:screen-width NES-ppu:screen-height)))
     (progn
-     (loop for y from 0 to 239
+     (loop for y from 0 to (- NES-ppu:screen-height 1)
        do
-       (loop for x from 0 to 255
+       (loop for x from 0 to (- NES-ppu:screen-width 1)
          do
          (let* ((color (aref (the (simple-array NES-ppu:color 1) front) (+ (* y 256) x)))
                 (r (color-r color))
                 (g (color-g color))
                 (b (color-b color))
                 (col (logior (ash #xFF 24) (ash r 16) (ash g 8) (ash b 0))))
-           (setf (aref pixels (+ (* y 256) x)) col))))
-     (sdl2:update-texture tex (static-vectors:static-vector-pointer pixels) :rect rect :width (* 256 4))
+           (setf (aref pixels (+ (* y NES-ppu:screen-width) x)) col))))
+     (sdl2:update-texture tex (static-vectors:static-vector-pointer pixels) :rect rect :width (* NES-ppu:screen-width 4))
      (sdl2:render-copy renderer tex :dest-rect rect)
      (static-vectors:free-static-vector pixels))))
 
