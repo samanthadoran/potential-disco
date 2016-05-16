@@ -4,7 +4,7 @@
   (:nicknames #:nes)
   (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu)
   (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes
-           #:step-frame #:setup-and-emulate))
+           #:step-frame #:setup-and-emulate #:render-nes))
 
 (in-package :NES-console)
 (declaim (optimize (speed 3) (safety 1)))
@@ -215,19 +215,43 @@
        (sdl2:render-clear renderer)))
 
 (defun render-nes (front renderer)
-  (loop for y from 0 to 239
-    do
-    (loop for x from 0 to 255
-      do
-      (sdl2:with-points ((p x y))
-        (let* ((color (aref (the (simple-array NES-ppu:color 1)front) (+ (* y 256) x)))
-               (r (color-r color))
-               (g (color-g color))
-               (b (color-b color)))
-       (sdl2:set-render-draw-color renderer r g b 255)
-       (multiple-value-bind (points num)
-        (sdl2:points* p)
-        (sdl2:render-draw-points renderer points num)))))))
+  (let ((tex (sdl2:create-texture
+              renderer
+              :argb8888
+              :static
+              256
+              240))
+        (pixels (static-vectors:make-static-vector (* 256 240) :element-type '(unsigned-byte 32) :initial-element 0))
+        (rect (sdl2:make-rect 0 0 256 240)))
+    (progn
+     (loop for y from 0 to 239
+       do
+       (loop for x from 0 to 255
+         do
+         (let* ((color (aref (the (simple-array NES-ppu:color 1) front) (+ (* y 256) x)))
+                (r (color-r color))
+                (g (color-g color))
+                (b (color-b color))
+                (col (logior (ash b 24) (ash g 16) (ash r 8) #xFF)))
+           (setf (aref pixels (+ (* y 265) x)) col))))
+     (sdl2:update-texture tex (static-vectors:static-vector-pointer pixels) :width 1024)
+     (sdl2:render-copy renderer tex :dest-rect rect))))
+
+
+  ; (loop for y from 0 to 239
+  ;   do
+  ;   (loop for x from 0 to 255
+  ;     do
+  ;     (sdl2:with-points ((p x y))
+  ;       (let* ((color (aref (the (simple-array NES-ppu:color 1)front) (+ (* y 256) x)))
+  ;              (r (color-r color))
+  ;              (g (color-g color))
+  ;              (b (color-b color)))
+  ;      (sdl2:set-render-draw-color renderer r g b 255)
+  ;      (multiple-value-bind (points num)
+  ;       (sdl2:points* p)
+  ;       (sdl2:render-draw-points renderer points num))))))
+
 
 (defun setup-and-emulate ()
   (let ((a (make-nes)))
