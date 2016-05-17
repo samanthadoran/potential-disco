@@ -39,18 +39,7 @@
 (defun jmp-indirect (c inst)
   (declare (cpu c))
   (declare (instruction inst))
-  (let ((hi (instruction-hi-byte inst))
-        (lo (instruction-lo-byte inst)))
-    (declare ((unsigned-byte 8) hi lo))
-    (setf
-     (cpu-pc c)
-     (if (= (logand lo #xFF) #xFF)
-       (progn
-        (let* ((addr-base (make-word-from-bytes hi lo))
-               (lo-buggy (read-cpu c addr-base))
-               (hi-buggy (read-cpu c (1+ (logand #xFF00 addr-base)))))
-          (make-word-from-bytes hi-buggy lo-buggy)))
-       (get-address c inst)))))
+  (setf (cpu-pc c) (get-address c inst)))
 
 (defun rts (c inst)
   (declare (cpu c))
