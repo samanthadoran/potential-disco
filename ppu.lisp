@@ -574,7 +574,7 @@
   (loop for i from 0 to (- (ppu-sprite-count p) 1)
     do
     (progn
-     (let ((offset (- (- (ppu-cycle p) 1) (to-signed-byte-8 (aref (ppu-sprite-positions p) i)))))
+     (let ((offset (- (- (ppu-cycle p) 1) (aref (ppu-sprite-positions p) i))))
        (when (= (ppu-flag-show-sprites p) 0)
          (return-from sprite-pixel (list 0 0)))
        (when (and (>= offset 0) (<= offset 7))
@@ -586,7 +586,7 @@
                   #x0F
                   (ash
                    (aref (ppu-sprite-patterns p) i)
-                   (* -1 (wrap-byte (* (wrap-byte (* offset 4))))))))))
+                   (* -1 (wrap-byte (* offset 4))))))))
            (when (not (= (mod color 4) 0))
              (return-from sprite-pixel (list (wrap-byte i) color))))))))
   (return-from sprite-pixel (list 0 0)))
