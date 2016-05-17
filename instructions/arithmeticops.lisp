@@ -167,8 +167,8 @@
     (declare ((unsigned-byte 8) val))
 
     (set-zn c (logand val (cpu-accumulator c)))
-    (setf (flags-negative (cpu-sr c)) (logand 1 (ash val -7)))
-    (setf (flags-overflow (cpu-sr c)) (logand 1 (ash val -6)))))
+    (setf (flags-negative (cpu-sr c)) (= 1 (logand 1 (ash val -7))))
+    (setf (flags-overflow (cpu-sr c)) (= 1 (logand 1 (ash val -6))))))
 
 (defun cmp (c inst)
   (declare (cpu c))
