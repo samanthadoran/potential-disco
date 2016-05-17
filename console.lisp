@@ -235,7 +235,7 @@
              (b (color-b color))
              (col (logior (ash #xFF 24) (ash r 16) (ash g 8) (ash b 0))))
         (setf (sb-sys:sap-ref-32 pixels (* 4 (+ (* y NES-ppu:screen-width) x))) col))))
-   (sdl2:update-texture tex pixels :rect rect :width (* NES-ppu:screen-width 4))
+   (sdl2:update-texture tex pixels :rect rect :width pitch)
    (sdl2:unlock-texture tex))
   (sdl2:render-copy renderer tex :dest-rect rect))
 
