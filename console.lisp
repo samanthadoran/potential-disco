@@ -8,7 +8,7 @@
   (:nicknames #:nes)
   (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu)
   (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes
-           #:step-frame #:setup-and-emulate #:render-nes))
+           #:step-frame #:setup-and-emulate #:render-nes #:load-cartridge))
 
 (in-package :NES-console)
 (declaim (optimize (speed 3) (safety 1)))
@@ -151,10 +151,13 @@
             (NES-ppu:write-register (nes-ppu n) addr val)
             (NES-ppu:write-register (nes-ppu n) (mod addr 8) val))))
 
+(defun read-rom (n rom-name)
+  (declare (nes n))
+  (setf (nes-cart n) (NES-cartridge:load-cartridge rom-name)))
+
 (defun console-on (n)
   (declare (nes n))
   (NES-ppu:reset-ppu (nes-ppu n))
-  (setf (nes-cart n) (NES-cartridge:load-cartridge #P"/home/samanthadoran/nes/smb.nes"))
   (setf (NES-ppu:ppu-trigger-nmi-callback (nes-ppu n)) (6502-cpu:trigger-nmi-callback (nes-cpu n)))
   (setf (NES-ppu:ppu-oam-dma-callback (nes-ppu n)) (lambda (addr) (6502-cpu:read-cpu (nes-cpu n) addr)))
   (setf (NES-ppu:ppu-oam-stall-adder (nes-ppu n)) (6502-cpu:add-to-stall (nes-cpu n)))
@@ -222,7 +225,7 @@
   (let ((tex (sdl2:create-texture
               renderer
               :argb8888
-              :static
+              :streaming
               NES-ppu:screen-width
               NES-ppu:screen-height))
         (pixels (static-vectors:make-static-vector (* NES-ppu:screen-width NES-ppu:screen-height) :element-type '(unsigned-byte 32) :initial-element 0))
@@ -242,8 +245,9 @@
      (sdl2:render-copy renderer tex :dest-rect rect)
      (static-vectors:free-static-vector pixels))))
 
-(defun setup-and-emulate ()
+(defun setup-and-emulate (cart-name)
   (let ((a (make-nes)))
+    (read-rom a cart-name)
     (console-on a)
     (sdl2:with-init (:everything)
       (sdl2:with-window (win :title "SDL2 Renderer API Demo" :flags '(:shown))
