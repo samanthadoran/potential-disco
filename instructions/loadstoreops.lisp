@@ -74,7 +74,7 @@
   (declare (instruction inst))
   "TXS. Transfer x to stack"
   (declare (ignore inst))
-  (setf (cpu-sp c) (cpu-x c)))
+  (set-zn c (setf (cpu-sp c) (cpu-x c))))
 
 (defun php (c inst)
   (declare (cpu c))
