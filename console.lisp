@@ -1,14 +1,13 @@
 (in-package :cl-user)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (ql:quickload "sdl2")
-  (ql:quickload "static-vectors"))
+  (ql:quickload "sdl2"))
 
 (defpackage #:NES-console
   (:nicknames #:nes)
   (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu)
   (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes
-           #:step-frame #:setup-and-emulate #:render-nes #:load-cartridge))
+           #:step-frame #:setup-and-emulate #:render-nes #:read-rom))
 
 (in-package :NES-console)
 (declaim (optimize (speed 3) (safety 1)))
@@ -221,38 +220,40 @@
   (progn (sdl2:set-render-draw-color renderer 0 0 0 255)
        (sdl2:render-clear renderer)))
 
-(defun render-nes (front renderer)
-  (let ((tex (sdl2:create-texture
-              renderer
-              :argb8888
-              :streaming
-              NES-ppu:screen-width
-              NES-ppu:screen-height))
-        (pixels (static-vectors:make-static-vector (* NES-ppu:screen-width NES-ppu:screen-height) :element-type '(unsigned-byte 32) :initial-element 0))
-        (rect (sdl2:make-rect 0 0 NES-ppu:screen-width NES-ppu:screen-height)))
-    (progn
-     (loop for y from 0 to (- NES-ppu:screen-height 1)
-       do
-       (loop for x from 0 to (- NES-ppu:screen-width 1)
-         do
-         (let* ((color (aref (the (simple-array NES-ppu:color 1) front) (+ (* y 256) x)))
-                (r (color-r color))
-                (g (color-g color))
-                (b (color-b color))
-                (col (logior (ash #xFF 24) (ash r 16) (ash g 8) (ash b 0))))
-           (setf (aref pixels (+ (* y NES-ppu:screen-width) x)) col))))
-     (sdl2:update-texture tex (static-vectors:static-vector-pointer pixels) :rect rect :width (* NES-ppu:screen-width 4))
-     (sdl2:render-copy renderer tex :dest-rect rect)
-     (static-vectors:free-static-vector pixels))))
+(defun render-nes (front renderer tex rect)
+  (multiple-value-bind
+   (pixels pitch)
+   (sdl2:lock-texture tex rect)
+   ;(print pitch)
+   (loop for y from 0 to (- NES-ppu:screen-height 1)
+    do
+    (loop for x from 0 to (- NES-ppu:screen-width 1)
+      do
+      (let* ((color (aref (the (simple-array NES-ppu:color 1) front) (+ (* y NES-ppu:screen-width) x)))
+             (r (color-r color))
+             (g (color-g color))
+             (b (color-b color))
+             (col (logior (ash #xFF 24) (ash r 16) (ash g 8) (ash b 0))))
+        (setf (sb-sys:sap-ref-32 pixels (* 4 (+ (* y NES-ppu:screen-width) x))) col))))
+   (sdl2:update-texture tex pixels :rect rect :width (* NES-ppu:screen-width 4))
+   (sdl2:unlock-texture tex))
+  (sdl2:render-copy renderer tex :dest-rect rect))
 
 (defun setup-and-emulate (cart-name)
   (let ((a (make-nes)))
     (read-rom a cart-name)
     (console-on a)
     (sdl2:with-init (:everything)
-      (sdl2:with-window (win :title "SDL2 Renderer API Demo" :flags '(:shown))
+      (sdl2:with-window (win :title "Potential-Disco" :flags '(:shown))
         (sdl2:with-renderer (renderer win :flags '(:accelerated))
-          (sdl2:with-event-loop (:method :poll)
+          (let* ((tex (sdl2:create-texture
+                      renderer
+                      :argb8888
+                      :streaming
+                      NES-ppu:screen-width
+                      NES-ppu:screen-height))
+                (rect (sdl2:make-rect 0 0 NES-ppu:screen-width NES-ppu:screen-height)))
+            (sdl2:with-event-loop (:method :poll)
             (:keyup
              (:keysym keysym)
              (when (sdl2:scancode= (sdl2:scancode-value keysym) :scancode-escape)
@@ -261,6 +262,6 @@
              ()
              (step-frame a)
              (test-render-clear renderer)
-             (render-nes (NES-ppu:ppu-front (nes-ppu a)) renderer)
+             (render-nes (NES-ppu:ppu-front (nes-ppu a)) renderer tex rect)
              (sdl2:render-present renderer))
-            (:quit () t)))))))
+            (:quit () t))))))))
