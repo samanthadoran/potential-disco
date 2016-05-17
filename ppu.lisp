@@ -533,7 +533,7 @@
 
 (defun store-tile-data (p)
   (declare (ppu p))
-  (let ((data #x00000000))
+  (let ((data 0))
     (declare ((unsigned-byte 32) data))
     (loop for i from 0 to 7
       do
@@ -547,7 +547,7 @@
         (setf
          data
          (logior a p1 p2 data))))
-    (setf (ppu-tile-data p) (logior (ppu-tile-data p) data))))
+    (the (unsigned-byte 64) (setf (ppu-tile-data p) (logior (ppu-tile-data p) data)))))
 
 (defun fetch-tile-data (p)
   (declare (ppu p))
