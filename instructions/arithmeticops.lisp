@@ -51,12 +51,11 @@
         (declare ((unsigned-byte 8) val))
         (declare ((unsigned-byte 16) addr))
 
-    (setf (flags-carry (cpu-sr c)) (= 1 (ldb (byte 1 7) val)))
+    (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 7) val))
     (set-zn
      c
      (if (equal mode :accumulator)
-       (progn
-        (setf (cpu-accumulator c) (wrap-byte (ash val 1))))
+       (setf (cpu-accumulator c) (wrap-byte (ash val 1)))
        (write-cpu c addr (wrap-byte (ash val 1)))))))
 
 (defun lsr (c inst)
@@ -91,8 +90,7 @@
 
     (setf
      (flags-carry (cpu-sr c))
-     (if (= 1 (ldb (byte 1 7) val))
-       T nil))
+     (ldb-test (byte 1 7) val))
     (set-zn
      c
      (if (equal mode :accumulator)
@@ -113,16 +111,11 @@
     (declare ((unsigned-byte 16) addr))
     (declare ((unsigned-byte 8) carry))
 
-   (setf
-    (flags-carry (cpu-sr c))
-    (if (= 1 (ldb (byte 1 0) val))
-      T nil))
+   (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 0) val))
    (set-zn
     c
     (if (equal mode :accumulator)
-     (setf
-      (cpu-accumulator c)
-      (wrap-byte (logior carry (ash val -1))))
+     (setf (cpu-accumulator c) (wrap-byte (logior carry (ash val -1))))
      (write-cpu c addr (wrap-byte (logior carry (ash val -1))))))))
 
 (defun ora (c inst)
