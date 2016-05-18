@@ -546,9 +546,7 @@
         (setf (ppu-low-tile p) (wrap-byte (ash (ppu-low-tile p) 1)))
         (setf (ppu-high-tile p) (wrap-byte (ash (ppu-high-tile p) 1)))
         (setf data (ash data 4))
-        (setf
-         data
-         (logior a p1 p2 data))))
+        (setf data (logior a p1 p2 data))))
     (the (unsigned-byte 64) (setf (ppu-tile-data p) (logior (ppu-tile-data p) data)))))
 
 (defun fetch-tile-data (p)
@@ -563,23 +561,23 @@
   (declare (ppu p))
   (if (= (ppu-flag-show-background p) 0)
     0
-    (logand
+    (the (unsigned-byte 8) (logand
      #x0F
      (ash
       (fetch-tile-data p)
-      (* (the fixnum (- 7 (ppu-x p))) 4 -1)))))
+      (the fixnum (* (the fixnum (- 7 (ppu-x p))) 4 -1)))))))
 
 (defun sprite-pixel (p)
   (declare (ppu p))
   (when (= (ppu-flag-show-sprites p) 0)
-    (return-from sprite-pixel (list 0 0)))
+    (return-from sprite-pixel (values 0 0)))
   (loop for i from 0 to (- (ppu-sprite-count p) 1)
     do
     (progn
      (let ((offset (- (- (ppu-cycle p) 1) (aref (ppu-sprite-positions p) i))))
        (declare (fixnum offset))
        (when (= (ppu-flag-show-sprites p) 0)
-         (return-from sprite-pixel (list 0 0)))
+         (return-from sprite-pixel (values 0 0)))
        (when (and (>= offset 0) (<= offset 7))
          (setf offset (- 7 offset))
          (let (
@@ -591,18 +589,19 @@
                    (aref (ppu-sprite-patterns p) i)
                    (* -1 (wrap-byte (* offset 4))))))))
            (when (not (= (mod color 4) 0))
-             (return-from sprite-pixel (list (wrap-byte i) color))))))))
-  (return-from sprite-pixel (list 0 0)))
+             (return-from sprite-pixel (values (wrap-byte i) color))))))))
+  (return-from sprite-pixel (values 0 0)))
 
 (defun render-pixel (p)
   (declare (ppu p))
-  (destructuring-bind
+  (multiple-value-bind
    (i sprite)
    (sprite-pixel p)
    (declare ((unsigned-byte 8) i sprite))
    (let ((x (- (ppu-cycle p) 1))
         (y (ppu-scanline p))
         (background (background-pixel p)))
+     (declare ((unsigned-byte 16) x y) ((unsigned-byte 8) background))
      (when (and (< x 8) (= (ppu-flag-show-left-background p) 0))
        (setf background 0))
      (when (and (< x 8) (= (ppu-flag-show-left-sprites p) 0))
