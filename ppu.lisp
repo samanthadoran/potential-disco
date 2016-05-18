@@ -38,7 +38,7 @@
 
 (defun to-signed-byte-8 (val)
   (declare ((unsigned-byte 8) val))
-  (the fixnum (if (= (ldb (byte 1 7) val) 1)
+  (the fixnum (if (ldb-test (byte 1 7) val)
     (* -1 (wrap-byte (1+ (lognot val))))
     val)))
 
