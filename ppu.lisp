@@ -31,9 +31,11 @@
   (b 0 :type (unsigned-byte 8)))
 
 (defun wrap-byte (val)
+  (declare ((unsigned-byte 64) val))
   (the (unsigned-byte 8) (logand #xFF val)))
 
 (defun wrap-word (val)
+  (declare ((unsigned-byte 64) val))
   (the (unsigned-byte 16) (logand #xFFFF val)))
 
 (defun to-signed-byte-8 (val)
@@ -219,25 +221,25 @@
   (declare ((unsigned-byte 8) value))
   (setf
    (ppu-flag-name-table p)
-   (logand (ash value 0) 3))
+   (ldb (byte 2 0) value))
   (setf
    (ppu-flag-increment p)
-   (logand (ash value -2) 1))
+   (ldb (byte 1 2) value))
   (setf
    (ppu-flag-sprite-table p)
-   (logand (ash value -3) 1))
+   (ldb (byte 1 3) value))
   (setf
    (ppu-flag-background-table p)
-   (logand (ash value -4) 1))
+   (ldb (byte 1 4) value))
   (setf
    (ppu-flag-sprite-size p)
-   (logand (ash value -5) 1))
+   (ldb (byte 1 5) value))
   (setf
    (ppu-flag-master-slave p)
-   (logand (ash value -6) 1))
+   (ldb (byte 1 6) value))
   (setf
    (ppu-nmi-output p)
-   (= (logand (ash value -7) 1) 1))
+   (ldb-test (byte 1 7) value))
   (nmi-change p)
   (setf
    (ppu-tv p)
@@ -252,28 +254,28 @@
   (declare ((unsigned-byte 8) value))
   (setf
    (ppu-flag-grayscale p)
-   (logand (ash value 0) 1))
+   (ldb (byte 1 0) value))
   (setf
    (ppu-flag-show-left-background p)
-   (logand (ash value -1) 1))
+   (ldb (byte 1 1) value))
   (setf
    (ppu-flag-show-left-sprites p)
-   (logand (ash value -2) 1))
+   (ldb (byte 1 2) value))
   (setf
    (ppu-flag-show-background p)
-   (logand (ash value -3) 1))
+   (ldb (byte 1 3) value))
   (setf
    (ppu-flag-show-sprites p)
-   (logand (ash value -4) 1))
+   (ldb (byte 1 4) value))
   (setf
    (ppu-flag-red-tint p)
-   (logand (ash value -5) 1))
+   (ldb (byte 1 5) value))
   (setf
    (ppu-flag-green-tint p)
-   (logand (ash value -6) 1))
+   (ldb (byte 1 6) value))
   (setf
    (ppu-flag-blue-tint p)
-   (logand (ash value -7) 1)))
+   (ldb (byte 1 7) value)))
 
 (defun read-status (p)
   (setf (ppu-w p) 0)
@@ -565,7 +567,7 @@
      #x0F
      (ash
       (fetch-tile-data p)
-      (* (- 7 (ppu-x p)) 4 -1)))))
+      (* (the fixnum (- 7 (ppu-x p))) 4 -1)))))
 
 (defun sprite-pixel (p)
   (declare (ppu p))
@@ -575,6 +577,7 @@
     do
     (progn
      (let ((offset (- (- (ppu-cycle p) 1) (aref (ppu-sprite-positions p) i))))
+       (declare (fixnum offset))
        (when (= (ppu-flag-show-sprites p) 0)
          (return-from sprite-pixel (list 0 0)))
        (when (and (>= offset 0) (<= offset 7))
@@ -632,12 +635,13 @@
         (address #x0000)
         (a (ash (logand attributes 3) 2))
         (row r))
-    (declare (fixnum row))
+    (declare (fixnum row) ((unsigned-byte 8) a attributes tile))
     (if (= (ppu-flag-sprite-size p) 0)
       (progn
        (when (= (logand attributes #x80) #x80)
          (setf row (- 7 row)))
        (let ((table (ppu-flag-sprite-table p)))
+         (declare ((unsigned-byte 1) table))
          (setf
           address
           (+
@@ -697,6 +701,7 @@
              (a (aref (ppu-oam-data p) (+ 2 (* i 4))))
              (x (aref (ppu-oam-data p) (+ 3 (* i 4))))
              (row (- (ppu-scanline p) y)))
+         (declare ((unsigned-byte 8) y a x) (fixnum row))
          (when (and (>= row 0) (< row h))
            (progn
            (when (< count 8)

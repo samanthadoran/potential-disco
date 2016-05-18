@@ -122,9 +122,11 @@
             (setf (cpu-interrupt c) :irq))))
 
 (defun wrap-byte (val)
+  (declare ((signed-byte 64) val))
   (the (unsigned-byte 8) (logand #xFF val)))
 
 (defun wrap-word (val)
+  (declare ((unsigned-byte 64) val))
   (the (unsigned-byte 16) (logand #xFFFF val)))
 
 (defun make-byte-from-flags (f)
@@ -489,7 +491,7 @@
     (funcall instruction c inst)
     (incf (cpu-cycles c) cycles)
     (when (> (cpu-cycles c) 65000) (setf (cpu-cycles c) 0))
-    (the (unsigned-byte 8) cycles)))
+    cycles))
 
 (defun nmi (c)
   (declare (cpu c))
