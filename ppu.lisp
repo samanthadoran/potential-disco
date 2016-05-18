@@ -3,6 +3,8 @@
 ;;  Sprocket-NES
 ;;  Fogleman's NES
 ;;  Famiclom
+;; As such, this is basically a translation of https://github.com/fogleman/nes/blob/master/nes/ppu.go
+;; Hopefully, I can eventually gain a better understanding
 
 (in-package :cl-user)
 
@@ -111,9 +113,9 @@
   (register 0 :type (unsigned-byte 8))
 
   ;NMI Status
-  (nmi-occurred nil)
-  (nmi-output nil)
-  (nmi-previous nil)
+  (nmi-occurred nil :type boolean)
+  (nmi-output nil :type boolean)
+  (nmi-previous nil :type boolean)
   (nmi-delay 0 :type (unsigned-byte 16))
 
   (trigger-nmi-callback (lambda ()) :type function)
