@@ -760,62 +760,65 @@
       (setf (ppu-frame p) (wrap-word (1+ (ppu-frame p))))
       (setf (ppu-f p) (logxor (ppu-f p) 1)))))
 
-(defun step-ppu (p)
-  (declare (ppu p))
-  (tick p)
-  (let* ((cycle (ppu-cycle p))
-         (scanline (ppu-scanline p))
-         (rendering-enabled
-          (not
-           (=
-            0
-            (ppu-flag-show-background p)
-            (ppu-flag-show-sprites p))))
-         (pre-line (= scanline 261))
-         (visible-line (< scanline 240))
-         (render-line (or pre-line visible-line))
-         (pre-fetch-cycle (and (>= cycle 321) (<= cycle 336)))
-         (visible-cycle (and (>= cycle 1) (<= cycle 256)))
-         (fetch-cycle (or pre-fetch-cycle visible-cycle)))
-    (when rendering-enabled
-      ;Begin background logic
-      (when (and visible-line visible-cycle)
-        (render-pixel p))
-      ;When we are on a fetch cycle and a render line...
-      (when (and render-line fetch-cycle)
-        ;Shift tile data left four to make room
-        (setf
-         (ppu-tile-data p)
-         ;Make sure it continues to fit in 64 bits
-         (logand
-          #xFFFFFFFFFFFFFFFF
-          (ash (ppu-tile-data p) 4)))
-        ;Dependingon what cycle we are in act accordingly
-        (case (mod cycle 8)
-          (0 (store-tile-data p))
-          (1 (fetch-name-table p))
-          (3 (fetch-attribute-table p))
-          (5 (fetch-low-tile p))
-          (7 (fetch-high-tile p))))
-      ;When we are on preline and
-      (when (and pre-line (>= (ppu-cycle p) 280) (<= (ppu-cycle p) 304))
-        (copy-y p))
-      (when render-line
-        (when (and fetch-cycle (= (mod cycle 8) 0))
-          (increment-x p))
-        (when (= cycle 256)
-          (increment-y p))
-        (when (= cycle 257)
-          (copy-x p)))
-      ;begin sprite logic
-      (when (= cycle 257)
-        (if visible-line
-          (evaluate-sprites p)
-          (setf (ppu-sprite-count p) 0))))
-    ;Begin vblank logic
-    (when (and (= scanline 241) (= (ppu-cycle p) 1))
-      (set-vertical-blank p))
-    (when (and pre-line (= (ppu-cycle p) 1))
-      (clear-vertical-blank p)
-      (setf (ppu-flag-sprite-zero-hit p) 0)
-      (setf (ppu-flag-sprite-overflow p) 0))))
+(defun step-ppu (p step)
+  (declare (ppu p) ((unsigned-byte 8) step))
+  (loop for i from 1 to step
+    do
+    (progn
+     (tick p)
+     (let* ((cycle (ppu-cycle p))
+            (scanline (ppu-scanline p))
+            (rendering-enabled
+             (not
+              (=
+               0
+               (ppu-flag-show-background p)
+               (ppu-flag-show-sprites p))))
+            (pre-line (= scanline 261))
+            (visible-line (< scanline 240))
+            (render-line (or pre-line visible-line))
+            (pre-fetch-cycle (and (>= cycle 321) (<= cycle 336)))
+            (visible-cycle (and (>= cycle 1) (<= cycle 256)))
+            (fetch-cycle (or pre-fetch-cycle visible-cycle)))
+       (when rendering-enabled
+         ;Begin background logic
+         (when (and visible-line visible-cycle)
+           (render-pixel p))
+         ;When we are on a fetch cycle and a render line...
+         (when (and render-line fetch-cycle)
+           ;Shift tile data left four to make room
+           (setf
+            (ppu-tile-data p)
+            ;Make sure it continues to fit in 64 bits
+            (logand
+             #xFFFFFFFFFFFFFFFF
+             (ash (ppu-tile-data p) 4)))
+           ;Depending on what cycle we are in act accordingly
+           (case (mod cycle 8)
+             (0 (store-tile-data p))
+             (1 (fetch-name-table p))
+             (3 (fetch-attribute-table p))
+             (5 (fetch-low-tile p))
+             (7 (fetch-high-tile p))))
+         ;When we are on preline and
+         (when (and pre-line (>= (ppu-cycle p) 280) (<= (ppu-cycle p) 304))
+           (copy-y p))
+         (when render-line
+           (when (and fetch-cycle (= (mod cycle 8) 0))
+             (increment-x p))
+           (when (= cycle 256)
+             (increment-y p))
+           (when (= cycle 257)
+             (copy-x p)))
+         ;begin sprite logic
+         (when (= cycle 257)
+           (if visible-line
+             (evaluate-sprites p)
+             (setf (ppu-sprite-count p) 0))))
+       ;Begin vblank logic
+       (when (and (= scanline 241) (= (ppu-cycle p) 1))
+         (set-vertical-blank p))
+       (when (and pre-line (= (ppu-cycle p) 1))
+         (clear-vertical-blank p)
+         (setf (ppu-flag-sprite-zero-hit p) 0)
+         (setf (ppu-flag-sprite-overflow p) 0))))))

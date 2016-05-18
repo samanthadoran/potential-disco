@@ -202,9 +202,7 @@
     do
     (let ((cycles (* 3 (the (unsigned-byte 8)(6502-CPU:step-cpu (nes-cpu n))))))
       (declare ((unsigned-byte 8) cycles))
-      (loop for i from 1 to cycles
-        do
-        (NES-ppu:step-ppu (nes-ppu n))))))
+      (NES-ppu:step-ppu (nes-ppu n) cycles))))
 
 (defun step-frame (n)
   (declare (nes n))
