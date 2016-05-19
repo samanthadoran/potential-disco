@@ -180,6 +180,18 @@
   (declare (nes n))
   (setf (nes-cart n) (NES-cartridge:load-cartridge rom-name)))
 
+(defun get-buttons()
+  (let ((buttons (make-array 8 :element-type '(unsigned-byte 8) :initial-element 0)))
+    (setf (aref buttons 0) (if (sdl2:keyboard-state-p :scancode-left) 1 0))
+    (setf (aref buttons 1) (if (sdl2:keyboard-state-p :scancode-down) 1 0))
+    (setf (aref buttons 2) (if (sdl2:keyboard-state-p :scancode-grave) 1 0))
+    (setf (aref buttons 3) (if (sdl2:keyboard-state-p :scancode-tab) 1 0))
+    (setf (aref buttons 4) (if (sdl2:keyboard-state-p :scancode-w) 1 0))
+    (setf (aref buttons 5) (if (sdl2:keyboard-state-p :scancode-s) 1 0))
+    (setf (aref buttons 6) (if (sdl2:keyboard-state-p :scancode-a) 1 0))
+    (setf (aref buttons 7) (if (sdl2:keyboard-state-p :scancode-d) 1 0))
+    buttons))
+
 (defun console-on (n)
   (declare (nes n))
   (NES-ppu:reset-ppu (nes-ppu n))
@@ -225,7 +237,10 @@
   (setf
    (aref (the (simple-array function 1) (6502-cpu:cpu-memory-get (nes-cpu n))) 5)
    (cpu-to-cart-read n))
-  (6502-cpu:power-on (nes-cpu n)))
+  (6502-cpu:power-on (nes-cpu n))
+  (setf
+   (NES-controller:controller-buttons-callback (aref (the (simple-array NES-controller:controller 1)(nes-controllers n)) 0))
+   #'get-buttons))
 
 (defun step-nes (n steps)
   (declare (nes n))
@@ -245,8 +260,8 @@
       do
       (progn
        (when (not (= frame (NES-ppu:ppu-frame (nes-ppu n)))) (return))
-       (nes-controller:update-controller controller (get-buttons))
-       (step-nes n 10)))))
+       (nes-controller:update-controller controller)
+       (step-nes n 1)))))
 
 (defun test-render-clear (renderer)
   (progn (sdl2:set-render-draw-color renderer 0 0 0 255)
@@ -270,18 +285,6 @@
    (sdl2:update-texture tex pixels :rect rect :width pitch)
    (sdl2:unlock-texture tex))
   (sdl2:render-copy renderer tex :dest-rect rect))
-
-(defun get-buttons()
-  (let ((buttons (make-array 8 :element-type '(unsigned-byte 8) :initial-element 0)))
-    (setf (aref buttons 0) (if (sdl2:keyboard-state-p :scancode-left) 1 0))
-    (setf (aref buttons 1) (if (sdl2:keyboard-state-p :scancode-down) 1 0))
-    (setf (aref buttons 2) (if (sdl2:keyboard-state-p :scancode-grave) 1 0))
-    (setf (aref buttons 3) (if (sdl2:keyboard-state-p :scancode-tab) 1 0))
-    (setf (aref buttons 4) (if (sdl2:keyboard-state-p :scancode-w) 1 0))
-    (setf (aref buttons 5) (if (sdl2:keyboard-state-p :scancode-s) 1 0))
-    (setf (aref buttons 6) (if (sdl2:keyboard-state-p :scancode-a) 1 0))
-    (setf (aref buttons 7) (if (sdl2:keyboard-state-p :scancode-d) 1 0))
-    buttons))
 
 (defun setup-and-emulate (cart-name)
   (let ((a (make-nes)))
