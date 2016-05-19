@@ -126,7 +126,7 @@
   (the (unsigned-byte 8) (logand #xFF val)))
 
 (defun wrap-word (val)
-  (declare ((unsigned-byte 64) val))
+  (declare ((signed-byte 64) val))
   (the (unsigned-byte 16) (logand #xFFFF val)))
 
 (defun make-byte-from-flags (f)
@@ -342,7 +342,7 @@
             (cpu-y c))))
          ;Get the address contained at lo-byte + x
          (:indexed-indirect
-          (read16-bug c (+ (the (unsigned-byte 8) (read-cpu c lo-byte)) (cpu-x c))))
+          (read16-bug c (wrap-word (+ lo-byte (cpu-x c)))))
          ;Get the address containted at lo-byte + y
          (:indirect-indexed
           (wrap-word (+ (cpu-y c) (read16-bug c lo-byte))))

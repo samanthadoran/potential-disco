@@ -18,8 +18,7 @@
        T nil))
     (setf
      (flags-overflow (cpu-sr c))
-     (if (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0)))
-       T nil))))
+     (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0))))))
 
 (defun sbc (c inst)
   (declare (cpu c) (instruction inst))
@@ -31,12 +30,10 @@
     (set-zn c (setf (cpu-accumulator c) (wrap-byte (- a b (- 1 carry)))))
     (setf
      (flags-carry (cpu-sr c))
-     (if (>= (- a b (1- carry)) 0)
-       T nil))
+     (>= (- a b (- 1 carry)) 0))
     (setf
      (flags-overflow (cpu-sr c))
-     (if (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0)))
-       T nil))))
+     (and (not (= (logand #x80 (logxor a b)) 0)) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0))))))
 
 (defun asl (c inst)
   (declare (cpu c) (instruction inst))
