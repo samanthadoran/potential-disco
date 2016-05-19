@@ -14,8 +14,7 @@
     (set-zn c (setf (cpu-accumulator c) (wrap-byte (+ a b carry))))
     (setf
      (flags-carry (cpu-sr c))
-     (if (> (+ a b carry) 255)
-       T nil))
+     (> (+ a b carry) 255))
     (setf
      (flags-overflow (cpu-sr c))
      (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0))))))
