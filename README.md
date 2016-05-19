@@ -11,7 +11,7 @@ TODO: Write more idiomatic Lisp
 ![Volley Ball](https://i.gyazo.com/ef21cd65df7267662637c735aa406bde.gif)
 ![NesTest](https://i.gyazo.com/f6f0767f3806388b99fb343190406b71.png)  
 #### Usage
-In your favorite common lisp repl (I have't tested outside of
+In your favorite common lisp repl (I haven't tested outside of
 sbcl), just run
 ```
 (asdf:load-system :console)
