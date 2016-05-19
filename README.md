@@ -1,5 +1,5 @@
 # potential-disco
-Trying to emulate the NES again in Common Lisp
+Trying to emulate the NES again in Common Lisp  
 Input is currently a bit dodgy, but works.
 
 ![Super Mario Bros](https://i.gyazo.com/82acf346cc33b2f2a57ac7bacb09fdc3.gif)
