@@ -179,12 +179,8 @@
     ((<= addr #x1FFF) (funcall (aref (cpu-memory-get c) 0) addr))
     ;PPU
     ((<= addr #x3FFF) (funcall (aref (cpu-memory-get c) 1) addr))
-    ;DMA
-    ((= addr #x4014) (funcall (aref (cpu-memory-get c) 3) addr))
-    ;Try to get the controller to do something to load a game.
-    ((= addr #x4016) (random 1))
     ;APU and IO Registers
-    ((<= addr #x401F) 0); THIS IS WRONG, CHANGE IT LATER
+    ((<= addr #x401F) (funcall (aref (cpu-memory-get c) 2) addr))
     ;Mapper Registers
     ((<= addr #x5FFF) (progn (print "Reads from cpu to mapper unimplemented....") 0))
     ;SAVE RAM
@@ -209,11 +205,13 @@
     ((<= addr #x1FFF) (funcall (aref (cpu-memory-set c) 0) addr val))
     ;PPU Registers
     ((<= addr #x3FFF) (funcall (aref (cpu-memory-set c) 1) addr val))
+    ;Don't forget oam-dma
+    ((= addr #x4014) (funcall (aref (cpu-memory-set c) 1) addr val))
+    ;APU and IO Registers
+    ((<= addr #x401F) (funcall (aref (cpu-memory-set c) 2) addr val))
     ;SAVE RAM
     ((and (<= addr #x7FFF) (>= addr #x6000))
      (progn (print "Writes to save ram unimplemented...") 0))
-    ;Don't forget oam-dma
-    ((= addr #x4014) (funcall (aref (cpu-memory-set c) 1) addr val))
     (T 0)))
 
 (defun reset (c)

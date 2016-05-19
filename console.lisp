@@ -5,7 +5,7 @@
 
 (defpackage #:NES-console
   (:nicknames #:nes)
-  (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu)
+  (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu :NES-controller)
   (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes
            #:step-frame #:setup-and-emulate #:render-nes #:read-rom))
 
@@ -15,7 +15,10 @@
   "A model nes"
   (cpu (6502-cpu:make-cpu))
   (cart (NES-cartridge:make-cartridge))
-  (ppu (NES-ppu:make-ppu)))
+  (ppu (NES-ppu:make-ppu))
+  (controllers
+   (make-array 2 :initial-contents `(,(nes-controller:make-controller)
+                                     ,(nes-controller:make-controller)))))
 
 (defvar mirror-lookup
   (make-array
@@ -150,6 +153,29 @@
             (NES-ppu:write-register (nes-ppu n) addr val)
             (NES-ppu:write-register (nes-ppu n) (mod addr 8) val))))
 
+(defun cpu-to-io-read (n)
+  (declare (nes n))
+  (lambda (addr)
+          (declare ((unsigned-byte 16) addr))
+          (if (or (= addr #x4016) (= addr #x4017))
+            (NES-controller:read-controller
+             (aref
+              (the (simple-array nes-controller:controller 1)(nes-controllers n))
+              (mod addr 2)))
+            0)))
+
+(defun cpu-to-io-write (n)
+  (declare (nes n))
+  (lambda (addr val)
+          (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
+          (if (or (= addr #x4016) (= addr #x4017))
+            (NES-controller:write-controller
+             (aref
+              (the (simple-array nes-controller:controller 1)(nes-controllers n))
+              (mod addr 2))
+             val)
+            0)))
+
 (defun read-rom (n rom-name)
   (declare (nes n))
   (setf (nes-cart n) (NES-cartridge:load-cartridge rom-name)))
@@ -190,6 +216,12 @@
   (setf
    (aref (the (simple-array function 1) (6502-cpu:cpu-memory-set (nes-cpu n))) 1)
    (cpu-to-ppu-write n))
+  (setf
+   (aref (the (simple-array function 1) (6502-cpu:cpu-memory-get (nes-cpu n))) 2)
+   (cpu-to-io-read n))
+  (setf
+   (aref (the (simple-array function 1) (6502-cpu:cpu-memory-set (nes-cpu n))) 2)
+   (cpu-to-io-write n))
   (setf
    (aref (the (simple-array function 1) (6502-cpu:cpu-memory-get (nes-cpu n))) 5)
    (cpu-to-cart-read n))
