@@ -244,7 +244,8 @@
       do
       (progn
        (when (not (= frame (NES-ppu:ppu-frame (nes-ppu n)))) (return))
-       (step-nes n 1)))))
+       (nes-controller:update-controller (aref (the (simple-array nes-controller:controller 1)(nes-controllers n)) 0) (get-buttons))
+       (step-nes n 20)))))
 
 (defun test-render-clear (renderer)
   (progn (sdl2:set-render-draw-color renderer 0 0 0 255)
@@ -269,6 +270,18 @@
    (sdl2:unlock-texture tex))
   (sdl2:render-copy renderer tex :dest-rect rect))
 
+(defun get-buttons()
+  (let ((buttons (make-array 8 :element-type '(unsigned-byte 8) :initial-element 0)))
+    (setf (aref buttons 0) (if (sdl2:keyboard-state-p :scancode-left) 1 0))
+    (setf (aref buttons 1) (if (sdl2:keyboard-state-p :scancode-down) 1 0))
+    (setf (aref buttons 2) (if (sdl2:keyboard-state-p :scancode-grave) 1 0))
+    (setf (aref buttons 3) (if (sdl2:keyboard-state-p :scancode-tab) 1 0))
+    (setf (aref buttons 4) (if (sdl2:keyboard-state-p :scancode-w) 1 0))
+    (setf (aref buttons 5) (if (sdl2:keyboard-state-p :scancode-s) 1 0))
+    (setf (aref buttons 6) (if (sdl2:keyboard-state-p :scancode-a) 1 0))
+    (setf (aref buttons 7) (if (sdl2:keyboard-state-p :scancode-d) 1 0))
+    buttons))
+
 (defun setup-and-emulate (cart-name)
   (let ((a (make-nes)))
     (read-rom a cart-name)
@@ -290,6 +303,7 @@
                (sdl2:push-event :quit)))
             (:idle
              ()
+             ;Update Controller
              (step-frame a)
              (test-render-clear renderer)
              (render-nes (NES-ppu:ppu-front (nes-ppu a)) renderer tex rect)
