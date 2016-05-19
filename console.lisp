@@ -288,7 +288,7 @@
     (read-rom a cart-name)
     (console-on a)
     (sdl2:with-init (:everything)
-      (sdl2:with-window (win :title "Potential-Disco" :flags '(:shown))
+      (sdl2:with-window (win :title "Potential-Disco" :w NES-ppu:screen-width :h NES-ppu:screen-height :flags '(:shown))
         (sdl2:with-renderer (renderer win :flags '(:accelerated))
           (let* ((tex (sdl2:create-texture
                       renderer
