@@ -193,7 +193,7 @@
   (declare ((unsigned-byte 16) addr))
   "Emulate indirect bugs..."
   (let ((lo (read-cpu c addr))
-        (hi (read-cpu c (logior (logand addr #xFF00) (1+ (wrap-byte addr))))))
+        (hi (read-cpu c (logior (logand addr #xFF00) (wrap-byte (1+ addr))))))
     (the (unsigned-byte 16) (make-word-from-bytes hi lo))))
 
 (defun write-cpu (c addr val)
@@ -342,7 +342,7 @@
             (cpu-y c))))
          ;Get the address contained at lo-byte + x
          (:indexed-indirect
-          (read16-bug c (wrap-word (+ lo-byte (cpu-x c)))))
+          (read16-bug c (wrap-byte (+ lo-byte (cpu-x c)))))
          ;Get the address containted at lo-byte + y
          (:indirect-indexed
           (wrap-word (+ (cpu-y c) (read16-bug c lo-byte))))
