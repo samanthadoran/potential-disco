@@ -238,14 +238,15 @@
 
 (defun step-frame (n)
   (declare (nes n))
-  (let ((frame (NES-ppu:ppu-frame (nes-ppu n))))
+  (let ((frame (NES-ppu:ppu-frame (nes-ppu n)))
+        (controller (aref (the (simple-array nes-controller:controller 1)(nes-controllers n)) 0)))
     (declare ((unsigned-byte 16) frame))
     (loop
       do
       (progn
        (when (not (= frame (NES-ppu:ppu-frame (nes-ppu n)))) (return))
-       (nes-controller:update-controller (aref (the (simple-array nes-controller:controller 1)(nes-controllers n)) 0) (get-buttons))
-       (step-nes n 20)))))
+       (nes-controller:update-controller controller (get-buttons))
+       (step-nes n 10)))))
 
 (defun test-render-clear (renderer)
   (progn (sdl2:set-render-draw-color renderer 0 0 0 255)
