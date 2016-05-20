@@ -203,7 +203,7 @@
   (aref
    (ppu-palette-data p)
    (if (and (>= address 16) (= (mod address 4) 0))
-     (logand #xFFFF (- address 16))
+     (wrap-word (- address 16))
      address)))
 
 (defun write-palette (p address value)
@@ -214,7 +214,7 @@
    (aref
     (ppu-palette-data p)
     (if (and (>= address 16) (= (mod address 4) 0))
-      (logand #xFFFF (- address 16))
+      (wrap-word (- address 16))
       address))
    value))
 
@@ -332,9 +332,7 @@
       (ppu-tv p)
       (wrap-word
       (logior
-       (logand
-        (ppu-tv p)
-        #x8FFF)
+       (logand (ppu-tv p) #x8FFF)
        (ash (logand value #x07) 12))))
      (setf
       (ppu-tv p)
@@ -452,8 +450,10 @@
 (defun increment-x (p)
   (declare (ppu p))
   (if (= (logand (ppu-v p) #x001F) 31)
-    (setf (ppu-v p) (wrap-word (logxor #x0400 (logand (ppu-v p) #xFFE0)))))
-    (setf (ppu-v p) (wrap-word (1+ (ppu-v p)))))
+    (progn
+     (setf (ppu-v p) (logand (ppu-v p) #xFFE0))
+     (setf (ppu-v p) (logxor (ppu-v p) #x0400)))
+    (setf (ppu-v p) (wrap-word (1+ (ppu-v p))))))
 
 (defun increment-y (p)
   (declare (ppu p))
@@ -524,7 +524,7 @@
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
          (table (ppu-flag-background-table p))
          (tile (ppu-name-table p))
-         (address (+ (* #x1000 (logand #xFFFF table)) (* 16 (logand #xFFFF tile)) fine-y)))
+         (address (+ (* #x1000 table) (* 16 tile) fine-y)))
     (setf (ppu-low-tile p) (read-ppu p address))))
 
 (defun fetch-high-tile (p)
@@ -532,7 +532,7 @@
   (let* ((fine-y (logand 7 (ash (ppu-v p) -12)))
          (table (ppu-flag-background-table p))
          (tile (ppu-name-table p))
-         (address (+ (* #x1000 (logand #xFFFF table)) (* 16 (logand #xFFFF tile)) fine-y)))
+         (address (+ (* #x1000 table) (* 16 tile) fine-y)))
     (setf (ppu-high-tile p) (read-ppu p (wrap-word (+ address 8))))))
 
 (defun store-tile-data (p)
@@ -578,8 +578,6 @@
     (progn
      (let ((offset (- (- (ppu-cycle p) 1) (aref (ppu-sprite-positions p) i))))
        (declare (fixnum offset))
-       (when (= (ppu-flag-show-sprites p) 0)
-         (return-from sprite-pixel (values 0 0)))
        (when (and (>= offset 0) (<= offset 7))
          (setf offset (- 7 offset))
          (let (
@@ -704,21 +702,14 @@
              (row (- (ppu-scanline p) y)))
          (declare ((unsigned-byte 8) y a x) (fixnum row))
          (when (and (>= row 0) (< row h))
-           (progn
            (when (< count 8)
              (setf
               (aref (ppu-sprite-patterns p) count)
               (fetch-sprite-pattern p i row))
-             (setf
-              (aref (ppu-sprite-positions p) count)
-              x)
-             (setf
-              (aref (ppu-sprite-priorities p) count)
-              (logand 1 (ash a -5)))
-             (setf
-              (aref (ppu-sprite-indexes p) count)
-              (wrap-byte i)))
-           (incf count))))))
+             (setf (aref (ppu-sprite-positions p) count) x)
+             (setf (aref (ppu-sprite-priorities p) count) (logand 1 (ash a -5)))
+             (setf (aref (ppu-sprite-indexes p) count) i))
+           (incf count)))))
     (when (> count 8)
       (setf count 8)
       (setf (ppu-flag-sprite-overflow p) 1))
