@@ -4,7 +4,7 @@ Trying to emulate the NES again in Common Lisp
 TODO: Other mapppers besides NROM  
 TODO: Write more idiomatic Lisp
 #### Examples
-![Super Mario Bros](https://i.gyazo.com/82acf346cc33b2f2a57ac7bacb09fdc3.gif)
+![Super Mario Bros](https://i.gyazo.com/5b8b161be74281255e48b63db45a7285.gif)
 ![Galaga](https://i.gyazo.com/d9af4b6f32a1b6790be46627c2035306.gif)
 ![Donkey Kong](https://i.gyazo.com/edfc1dc4245ce0bfbbf99af8e84870e0.gif)
 ![Volley Ball](https://i.gyazo.com/ef21cd65df7267662637c735aa406bde.gif)
