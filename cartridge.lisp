@@ -64,7 +64,7 @@
         (let*
           ;If trainers are present, skip them.
           ((to-add
-            (if (= (logand (ash (ines-header-flags6 header) -2) 1) 1)
+            (if (ldb-test (byte 1 3) (ines-header-flags6 header))
               512
               0))
            ;Limits of memory areas
