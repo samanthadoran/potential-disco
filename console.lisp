@@ -41,7 +41,7 @@
           (declare ((unsigned-byte 16) addr))
           (aref
            (the (simple-array (unsigned-byte 8) 1) (NES-ppu:ppu-name-table-data (nes-ppu n)))
-           (mod (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) 2048))))
+           (logand (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) #x7ff))))
 
 (defun ppu-to-name-table-write (n)
   (declare (nes n))
@@ -51,21 +51,21 @@
           (setf
            (aref
             (the (simple-array (unsigned-byte 8) 1) (NES-ppu:ppu-name-table-data (nes-ppu n)))
-            (mod (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) 2048))
+            (logand (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) #x7ff))
            val)))
 
 (defun ppu-to-palette-read (n)
   (declare (nes n))
   (lambda (addr)
           (declare ((unsigned-byte 16) addr))
-          (NES-ppu:read-palette (nes-ppu n) (mod addr 32))))
+          (NES-ppu:read-palette (nes-ppu n) (logand addr #x1f))))
 
 (defun ppu-to-palette-write (n)
   (declare (nes n))
   (lambda (addr val)
           (declare ((unsigned-byte 16) addr))
           (declare ((unsigned-byte 8) val))
-          (NES-ppu:write-palette (nes-ppu n) (mod addr 32) val)))
+          (NES-ppu:write-palette (nes-ppu n) (logand addr #x1f) val)))
 
 (defun ppu-to-mapper-read (n)
   (declare (nes n))
