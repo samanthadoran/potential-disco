@@ -232,7 +232,10 @@
    (cpu-to-cart-read n))
   (6502-cpu:power-on (nes-cpu n))
   (setf
-   (NES-controller:controller-buttons-callback (aref (the (simple-array NES-controller:controller 1)(nes-controllers n)) 0))
+   (NES-controller:controller-buttons-callback
+    (aref
+     (the (simple-array NES-controller:controller 1)(nes-controllers n))
+     0))
    #'get-buttons))
 
 (defun step-nes (n steps)
@@ -256,14 +259,13 @@
        (step-nes n 1)))))
 
 (defun test-render-clear (renderer)
-  (progn (sdl2:set-render-draw-color renderer 0 0 0 255)
-       (sdl2:render-clear renderer)))
+  (sdl2:set-render-draw-color renderer 0 0 0 255)
+  (sdl2:render-clear renderer))
 
 (defun render-nes (front renderer tex rect)
   (multiple-value-bind
    (pixels pitch)
    (sdl2:lock-texture tex rect)
-   ;(print pitch)
    (loop for y from 0 to (- NES-ppu:screen-height 1)
     do
     (loop for x from 0 to (- NES-ppu:screen-width 1)
