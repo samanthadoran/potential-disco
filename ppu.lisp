@@ -642,12 +642,12 @@
           (if (= (logand attributes #x40) #x40)
             (progn
              (setf p1 (logand low-tile 1))
-             (setf p2 (wrap-byte (ash (logand high-tile 1) 1)))
-             (setf low-tile (wrap-byte (ash low-tile -1)))
-             (setf high-tile (wrap-byte (ash high-tile -1))))
+             (setf p2 (ash (logand high-tile 1) 1))
+             (setf low-tile (ash low-tile -1))
+             (setf high-tile (ash high-tile -1)))
             (progn
-             (setf p1 (wrap-byte (ash (logand low-tile #x80) -7)))
-             (setf p2 (wrap-byte (ash (logand high-tile #x80) -6)))
+             (setf p1 (ash (logand low-tile #x80) -7))
+             (setf p2 (ash (logand high-tile #x80) -6))
              (setf low-tile (wrap-byte (ash low-tile 1)))
              (setf high-tile (wrap-byte (ash high-tile 1)))))
           (setf data (logand #xFFFFFFFF (ash data 4)))
