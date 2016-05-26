@@ -162,10 +162,7 @@
 
 (defun pages-differ (a b)
   (declare ((unsigned-byte 16) a b))
-  (not
-   (=
-    (logand a #xFF00)
-    (logand b #xFF00))))
+  (not (= (ldb (byte 8 8) a) (ldb (byte 8 8) b))))
 
 (defun read-cpu (c addr)
   (declare (cpu c) ((unsigned-byte 16) addr))
@@ -184,12 +181,15 @@
     ;PRG ROM
     ((<= addr #xFFFF) (funcall (aref (cpu-memory-get c) 5) addr))))
 
-(defun read16-bug (c addr)
+(defun read16 (c addr bug)
   (declare (cpu c) ((unsigned-byte 16) addr))
   "Emulate indirect bugs..."
-  (let ((lo (read-cpu c addr))
-        (hi (read-cpu c (logior (logand addr #xFF00) (wrap-byte (1+ addr))))))
-    (the (unsigned-byte 16) (make-word-from-bytes hi lo))))
+  (if bug
+    (let ((lo (read-cpu c addr))
+          (hi (read-cpu c (logior (logand addr #xFF00) (wrap-byte (1+ addr))))))
+      (the (unsigned-byte 16) (make-word-from-bytes hi lo)))
+    (let ((lo (read-cpu c addr)) (hi (read-cpu c (wrap-word (1+ addr)))))
+      (the (unsigned-byte 16) (make-word-from-bytes hi lo)))))
 
 (defun write-cpu (c addr val)
   (declare (cpu c) ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
@@ -230,7 +230,7 @@
   (setf (cpu-sp c) #xFD)
   (setf
    (cpu-pc c)
-   (make-word-from-bytes (read-cpu c #xFFFD) (read-cpu c #xFFFC))))
+   (read16 c #xFFFC nil)))
 
 (defun pull-stack (c)
   (declare (cpu c))
@@ -241,14 +241,8 @@
 (defun push-stack (c val)
   (declare (cpu c) ((unsigned-byte 8) val))
   "Put a value on the stack and then push it forwards"
-  (setf
-   (aref
-    (cpu-memory c)
-    (logior (cpu-sp c) #x100))
-   val)
-  (setf
-   (cpu-sp c)
-   (wrap-byte (- (cpu-sp c) 1))))
+  (setf (aref (cpu-memory c) (logior (cpu-sp c) #x100)) val)
+  (setf (cpu-sp c) (wrap-byte (- (cpu-sp c) 1))))
 
 (defun pull16 (c)
   (declare (cpu c))
@@ -311,7 +305,7 @@
          ;Read the address contained at the supplied two byte address.
          (:indirect
           (let ((ptr-addr (make-word-from-bytes hi-byte lo-byte)))
-            (read16-bug c ptr-addr)))
+            (read16 c ptr-addr T)))
          ;Add the x register to the low-byte for zero-page addressing
          (:zero-page-indexed-x (wrap-byte (+ lo-byte (cpu-x c))))
          ;Add the y register to the low-byte for zero-page addressing
@@ -330,10 +324,10 @@
             (cpu-y c))))
          ;Get the address contained at lo-byte + x
          (:indexed-indirect
-          (read16-bug c (wrap-byte (+ lo-byte (cpu-x c)))))
+          (read16 c (wrap-byte (+ lo-byte (cpu-x c))) T))
          ;Get the address containted at lo-byte + y
          (:indirect-indexed
-          (wrap-word (+ (cpu-y c) (read16-bug c lo-byte))))
+          (wrap-word (+ (cpu-y c) (read16 c lo-byte T))))
          (otherwise 0))))
 
 (defun get-value (c inst)
@@ -400,15 +394,11 @@
      (addressing-mode (determine-addressing-mode opcode)))
     ;If it is a special case, modify
     (cond
-      ((member
-        opcode
-        '(#x10 #x30 #x50 #x70 #x90 #xB0 #xD0 #xF0))
+      ((member opcode '(#x10 #x30 #x50 #x70 #x90 #xB0 #xD0 #xF0))
        (progn
         (setf addressing-mode :relative)
         (setf masked-opcode opcode)))
-      ((member
-        opcode
-        '(#x20 #x2C #x4C))
+      ((member opcode '(#x20 #x2C #x4C))
        (progn
         (setf addressing-mode :absolute)
         (setf masked-opcode opcode)))
@@ -421,8 +411,8 @@
         (setf addressing-mode :zero-page)
         (setf masked-opcode opcode)))
       ((member opcode '(#x08 #x28 #x48 #x68 #x88 #xA8 #xC8 #xE8 #x18
-                         #x38 #x58 #x78 #x98 #xB8 #xD8 #xF8 #x8A
-                         #x9A #xAA #xBA #xCA #xEA #x0 #x40 #x60))
+                        #x38 #x58 #x78 #x98 #xB8 #xD8 #xF8 #x8A
+                        #x9A #xAA #xBA #xCA #xEA #x00 #x40 #x60))
        (progn
         (setf addressing-mode :implicit)
         (setf masked-opcode opcode))))
@@ -481,7 +471,7 @@
   (declare (cpu c))
   (push16 c (cpu-pc c))
   (php c nil)
-  (setf (cpu-pc c) (make-word-from-bytes (read-cpu c #xFFFB) (read-cpu c #xFFFA)))
+  (setf (cpu-pc c) (read16 c #xFFFA nil))
   (setf (flags-interrupt (cpu-sr c)) T)
   (incf (cpu-cycles c) 7))
 
@@ -489,7 +479,7 @@
   (declare (cpu c))
   (push16 c (cpu-pc c))
   (php c nil)
-  (setf (cpu-pc c) (make-word-from-bytes (read-cpu c #xFFFF) (read-cpu c #xFFFE)))
+  (setf (cpu-pc c) (read16 c #xFFFE nil))
   (setf (flags-interrupt (cpu-sr c)) T)
   (incf (cpu-cycles c) 7))
 
