@@ -61,8 +61,7 @@
     (set-zn
      c
      (if (equal mode :accumulator)
-       (progn
-        (setf (cpu-accumulator c) (wrap-byte (ash val -1))))
+       (setf (cpu-accumulator c) (wrap-byte (ash val -1)))
        (write-cpu c addr (wrap-byte (ash val -1)))))))
 
 (defun rol (c inst)
