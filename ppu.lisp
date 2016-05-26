@@ -606,7 +606,7 @@
         (aref (ppu-back p) (+ (* y screen-width) x))
         (aref
          (the (simple-array color 1) *palette*)
-         (mod (read-palette p (logand #xFFFF color)) 64)))))))
+         (mod (read-palette p (wrap-word color)) 64)))))))
 
 (defun fetch-sprite-pattern (p i r)
   (declare (ppu p) ((signed-byte 16) i r))
@@ -615,18 +615,14 @@
         (address #x0000)
         (a (ash (logand attributes 3) 2))
         (row r))
-    (declare (fixnum row) ((unsigned-byte 8) a attributes tile))
+    (declare (fixnum row) ((unsigned-byte 8) a attributes tile)
+             ((unsigned-byte 16) address))
     (if (= (ppu-flag-sprite-size p) 0)
       (let ((table (ppu-flag-sprite-table p)))
         (declare ((unsigned-byte 1) table))
         (when (= (logand attributes #x80) #x80)
           (setf row (- 7 row)))
-        (setf
-         address
-         (+
-          (logand #xFFFF (* #x1000 (logand #xFFFF table)))
-          (logand #xFFFF (* 16 (logand #xFFFF tile)))
-          (logand #xFFFF row))))
+        (setf address (+ (* #x1000 table) (* 16 tile) row)))
       (let ((table (logand tile 1)))
         (when (= (logand attributes #x80) #x80)
           (setf row (- 15 row)))
@@ -634,12 +630,7 @@
         (when (> row 7)
           (incf tile)
           (decf row 8))
-        (setf
-         address
-         (+
-          (* #x1000 (logand #xFFFF table))
-          (* (logand #xFFFF tile) 16)
-          (logand #xFFFF row)))))
+        (setf address (+ (* #x1000 table) (* tile 16) row))))
     (let ((low-tile (read-ppu p address))
           (high-tile (read-ppu p (wrap-word (+ address 8))))
           (data #x00000000))
