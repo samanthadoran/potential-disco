@@ -40,8 +40,7 @@
   (let ((mode (instruction-addressing-mode inst))
         (val (get-value c inst))
         (addr (get-address c inst)))
-        (declare ((unsigned-byte 8) val))
-        (declare ((unsigned-byte 16) addr))
+    (declare ((unsigned-byte 8) val) ((unsigned-byte 16) addr))
 
     (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 7) val))
     (set-zn
@@ -56,8 +55,7 @@
   (let ((mode (instruction-addressing-mode inst))
         (val (get-value c inst))
         (addr (get-address c inst)))
-    (declare ((unsigned-byte 8) val))
-    (declare ((unsigned-byte 16) addr))
+    (declare ((unsigned-byte 8) val) ((unsigned-byte 16) addr))
 
     (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 0) val))
     (set-zn
@@ -74,9 +72,7 @@
         (val (get-value c inst))
         (addr (get-address c inst))
         (carry (if (flags-carry (cpu-sr c)) 1 0)))
-    (declare ((unsigned-byte 8) val))
-    (declare ((unsigned-byte 16) addr))
-    (declare ((unsigned-byte 8) carry))
+    (declare ((unsigned-byte 8) val carry) ((unsigned-byte 16) addr))
 
     (setf
      (flags-carry (cpu-sr c))
@@ -96,9 +92,7 @@
        (val (get-value c inst))
        (addr (get-address c inst))
        (carry (if (flags-carry (cpu-sr c)) 128 0)))
-    (declare ((unsigned-byte 8) val))
-    (declare ((unsigned-byte 16) addr))
-    (declare ((unsigned-byte 8) carry))
+    (declare ((unsigned-byte 8) carry val) ((unsigned-byte 16) addr))
 
    (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 0) val))
    (set-zn
@@ -187,16 +181,14 @@
   (declare (cpu c) (instruction inst))
   (let ((val (get-value c inst))
         (addr (get-address c inst)))
-        (declare ((unsigned-byte 8) val))
-        (declare ((unsigned-byte 16) addr))
+        (declare ((unsigned-byte 8) val) ((unsigned-byte 16) addr))
     (set-zn c (write-cpu c addr (wrap-byte (- val 1))))))
 
 (defun inc (c inst)
   (declare (cpu c) (instruction inst))
   (let ((val (get-value c inst))
         (addr (get-address c inst)))
-    (declare ((unsigned-byte 8) val))
-    (declare ((unsigned-byte 16) addr))
+    (declare ((unsigned-byte 8) val) ((unsigned-byte 16) addr))
     (set-zn c (write-cpu c addr (wrap-byte (1+ val))))))
 
 (defun inx (c inst)
