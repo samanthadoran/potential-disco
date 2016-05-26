@@ -27,8 +27,7 @@
    :initial-contents '(0 0 1 1 0 1 0 1 0 0 0 0 1 1 1 1 0 1 2 3)))
 
 (defun mirror-address (mode addr)
-  (declare ((unsigned-byte 16) addr))
-  (declare ((unsigned-byte 8) mode))
+  (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) mode))
   (let* ((address (mod (- addr #x2000) #x1000))
         (table (floor address #x0400))
         (offset (mod address #x0400)))
@@ -46,8 +45,7 @@
 (defun ppu-to-name-table-write (n)
   (declare (nes n))
   (lambda (addr val)
-          (declare ((unsigned-byte 16) addr))
-          (declare ((unsigned-byte 8) val))
+          (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
           (setf
            (aref
             (the (simple-array (unsigned-byte 8) 1) (NES-ppu:ppu-name-table-data (nes-ppu n)))
@@ -63,8 +61,7 @@
 (defun ppu-to-palette-write (n)
   (declare (nes n))
   (lambda (addr val)
-          (declare ((unsigned-byte 16) addr))
-          (declare ((unsigned-byte 8) val))
+          (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
           (NES-ppu:write-palette (nes-ppu n) (logand addr #x1f) val)))
 
 (defun ppu-to-mapper-read (n)
@@ -80,8 +77,7 @@
 (defun ppu-to-mapper-write (n)
   (declare (nes n))
   (lambda (addr val)
-          (declare ((unsigned-byte 16) addr))
-          (declare ((unsigned-byte 8) val))
+          (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
           (setf
            (aref
             (if (arrayp (NES-cartridge:cartridge-chr-ram (nes-cart n)))
@@ -103,8 +99,7 @@
 (defun cpu-to-cpu-write (n)
   (declare (nes n))
   (lambda (addr val)
-          (declare ((unsigned-byte 16) addr))
-          (declare ((unsigned-byte 8) val))
+          (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
           (setf
            (aref
             (the (simple-array (unsigned-byte 8) 1) (6502-cpu:cpu-memory (nes:nes-cpu n)))
@@ -126,8 +121,7 @@
 (defun cpu-to-cart-write (n)
   (declare (nes n))
   (lambda (addr val)
-          (declare ((unsigned-byte 16) addr))
-          (declare ((unsigned-byte 8) val))
+          (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
           (setf
            (aref
             (the (simple-array (unsigned-byte 8) 1)(NES-cartridge:cartridge-prg-rom (nes-cart n)))
@@ -147,8 +141,7 @@
 (defun cpu-to-ppu-write (n)
   (declare (nes n))
   (lambda (addr val)
-          (declare ((unsigned-byte 16) addr))
-          (declare ((unsigned-byte 8) val))
+          (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
           (if (= addr #x4014)
             (NES-ppu:write-register (nes-ppu n) addr val)
             (NES-ppu:write-register (nes-ppu n) (mod addr 8) val))))
@@ -243,8 +236,7 @@
    #'get-buttons))
 
 (defun step-nes (n steps)
-  (declare (nes n))
-  (declare ((unsigned-byte 32) steps))
+  (declare (nes n) ((unsigned-byte 32) steps))
   (loop for s from 1 to steps
     do
     (let ((cycles (* 3 (the (unsigned-byte 8)(6502-CPU:step-cpu (nes-cpu n))))))

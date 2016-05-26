@@ -171,8 +171,7 @@
     (logand b #xFF00))))
 
 (defun read-cpu (c addr)
-  (declare (cpu c))
-  (declare ((unsigned-byte 16) addr))
+  (declare (cpu c) ((unsigned-byte 16) addr))
   "Reads the memory at the specified address"
   (cond
     ;CPU internal memory
@@ -189,17 +188,14 @@
     ((<= addr #xFFFF) (funcall (aref (cpu-memory-get c) 5) addr))))
 
 (defun read16-bug (c addr)
-  (declare (cpu c))
-  (declare ((unsigned-byte 16) addr))
+  (declare (cpu c) ((unsigned-byte 16) addr))
   "Emulate indirect bugs..."
   (let ((lo (read-cpu c addr))
         (hi (read-cpu c (logior (logand addr #xFF00) (wrap-byte (1+ addr))))))
     (the (unsigned-byte 16) (make-word-from-bytes hi lo))))
 
 (defun write-cpu (c addr val)
-  (declare (cpu c))
-  (declare ((unsigned-byte 16) addr))
-  (declare ((unsigned-byte 8) val))
+  (declare (cpu c) ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
   (cond
     ;CPU internal memory
     ((<= addr #x1FFF) (funcall (aref (cpu-memory-set c) 0) addr val))
@@ -246,8 +242,7 @@
   (aref (cpu-memory c) (logior (cpu-sp c) #x100)))
 
 (defun push-stack (c val)
-  (declare (cpu c))
-  (declare ((unsigned-byte 8) val))
+  (declare (cpu c) ((unsigned-byte 8) val))
   "Put a value on the stack and then push it forwards"
   (setf
    (aref
@@ -264,15 +259,13 @@
   (the (unsigned-byte 16) (logior (pull-stack c) (ash (pull-stack c) 8))))
 
 (defun push16 (c val)
-  (declare (cpu c))
-  (declare ((unsigned-byte 16) val))
+  (declare (cpu c) ((unsigned-byte 16) val))
   "Push twice."
   (push-stack c (ash val -8))
   (push-stack c (wrap-byte val)))
 
 (defun step-pc (c inst)
-  (declare (cpu c))
-  (declare (instruction inst))
+  (declare (cpu c) (instruction inst))
   "Step the pc according to the addressing mode."
   (let ((mode (instruction-addressing-mode inst)))
     (setf
@@ -297,8 +290,7 @@
          (otherwise 1)))))))
 
 (defun set-zn (c val)
-  (declare (cpu c))
-  (declare ((unsigned-byte 8) val))
+  (declare (cpu c) ((unsigned-byte 8) val))
   "Sets the zero or negative flag"
   ;If zero, set the bit
   (setf (flags-zero (cpu-sr c)) (= val 0))
@@ -306,8 +298,7 @@
   (setf (flags-negative (cpu-sr c)) (ldb-test (byte 1 7) val)))
 
 (defun get-address (c inst)
-  (declare (cpu c))
-  (declare (instruction inst))
+  (declare (cpu c) (instruction inst))
   "Get the address the instruction is talking about"
   (let ((mode (instruction-addressing-mode inst))
         (lo-byte (instruction-lo-byte inst))
@@ -349,8 +340,7 @@
          (otherwise 0))))
 
 (defun get-value (c inst)
-  (declare (cpu c))
-  (declare (instruction inst))
+  (declare (cpu c) (instruction inst))
   "Get the value from an instruction"
   (if (equal :immediate (instruction-addressing-mode inst))
     (instruction-lo-byte inst)
@@ -448,8 +438,7 @@
      :lo-byte lo-byte)))
 
 (defun instruction-cycles (c inst)
-  (declare (cpu c))
-  (declare (instruction inst))
+  (declare (cpu c) (instruction inst))
   (let* ((address (get-address c inst))
         (mode (instruction-addressing-mode inst))
         (unmasked (instruction-unmasked-opcode inst))

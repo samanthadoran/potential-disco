@@ -173,8 +173,7 @@
   (oam-stall-adder (lambda()) :type function))
 
 (defun read-ppu (p addr)
-  (declare (ppu p))
-  (declare ((unsigned-byte 16) addr))
+  (declare (ppu p) ((unsigned-byte 16) addr))
   (setf addr (mod addr #x4000))
   (cond
     ;Mapper
@@ -185,9 +184,7 @@
     ((< addr #x4000) (funcall (aref (ppu-memory-get p) 2) addr))))
 
 (defun write-ppu (p addr val)
-  (declare (ppu p))
-  (declare ((unsigned-byte 16) addr))
-  (declare ((unsigned-byte 8) val))
+  (declare (ppu p) ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
   (setf addr (mod addr #x4000))
   (cond
     ;Mapper
@@ -198,8 +195,7 @@
     ((< addr #x4000) (funcall (aref (ppu-memory-set p) 2) addr val))))
 
 (defun read-palette (p address)
-  (declare (ppu p))
-  (declare ((unsigned-byte 16) address))
+  (declare (ppu p) ((unsigned-byte 16) address))
   (aref
    (ppu-palette-data p)
    (if (and (>= address 16) (= (mod address 4) 0))
@@ -207,9 +203,7 @@
      address)))
 
 (defun write-palette (p address value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 16) address))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 16) address) ((unsigned-byte 8) value))
   (setf
    (aref
     (ppu-palette-data p)
@@ -219,8 +213,7 @@
    value))
 
 (defun write-control (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (setf
    (ppu-flag-name-table p)
    (ldb (byte 2 0) value))
@@ -252,8 +245,7 @@
      (ash (logand value 3) 10)))))
 
 (defun write-mask (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (setf
    (ppu-flag-grayscale p)
    (ldb (byte 1 0) value))
@@ -298,8 +290,7 @@
 
 
 (defun write-oam-address (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (setf (ppu-oam-address p) value))
 
 (defun read-oam-data (p)
@@ -307,14 +298,12 @@
   (aref (ppu-oam-data p) (ppu-oam-address p)))
 
 (defun write-oam-data (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (setf (aref (ppu-oam-data p) (ppu-oam-address p)) value)
   (setf (ppu-oam-address p) (wrap-byte (1+ (ppu-oam-address p)))))
 
 (defun write-scroll (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (if (= (ppu-w p) 0)
     (progn
      (setf
@@ -343,8 +332,7 @@
      (setf (ppu-w p) 0))))
 
 (defun write-address (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (if (= (ppu-w p) 0)
     (progn
      (setf
@@ -386,8 +374,7 @@
 
 
 (defun write-data (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (write-ppu p (ppu-v p) value)
   (setf
    (ppu-v p)
@@ -399,8 +386,7 @@
        32)))))
 
 (defun write-dma (p value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 8) value))
+  (declare (ppu p) ((unsigned-byte 8) value))
   (let ((address (wrap-word (ash value 8))))
     (loop for i from 0 to 255
       do
@@ -413,8 +399,7 @@
     (funcall (ppu-oam-stall-adder p) 513)))
 
 (defun read-register (p selector)
-  (declare (ppu p))
-  (declare ((unsigned-byte 16) selector))
+  (declare (ppu p) ((unsigned-byte 16) selector))
   (case selector
     ;Read ppu status
     (2 (read-status p))
@@ -425,8 +410,7 @@
     (otherwise (progn (print "Uhm?") 0))))
 
 (defun write-register (p selector value)
-  (declare (ppu p))
-  (declare ((unsigned-byte 16) selector))
+  (declare (ppu p) ((unsigned-byte 16) selector))
   (setf (ppu-register p) value)
   (case selector
     ;Write Control
@@ -627,8 +611,7 @@
          (mod (read-palette p (logand #xFFFF color)) 64)))))))
 
 (defun fetch-sprite-pattern (p i r)
-  (declare (ppu p))
-  (declare ((signed-byte 16) i r))
+  (declare (ppu p) ((signed-byte 16) i r))
   (let* ((tile (aref (ppu-oam-data p) (1+ (* i 4))))
         (attributes (aref (ppu-oam-data p) (+ 2 (* i 4))))
         (address #x0000)
@@ -691,8 +674,7 @@
            8
            16))
         (count 0))
-    (declare (fixnum count))
-    (declare ((unsigned-byte 8) h))
+    (declare (fixnum count) ((unsigned-byte 8) h))
     (loop for i from 0 to 63
       do
       (progn
