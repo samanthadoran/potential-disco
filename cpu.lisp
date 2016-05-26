@@ -3,13 +3,10 @@
 (defpackage #:6502-cpu
   (:nicknames #:cpu)
   (:use :cl :cl-user)
-  (:export #:make-cpu #:pages-differ #:reset #:power-on #:pull-stack
-           #:push-stack #:pull16 #:push16 #:cpu-cycles #:cpu-accumulator #:cpu-x
-           #:cpu-y #:cpu-pc #:cpu-sp #:cpu-memory #:step-pc #:fetch #:wrap-word
-           #:wrap-byte #:step-cpu #:decode #:execute #:make-instruction
-           #:cpu-memory-get #:cpu-memory-set #:ora #:to-signed-byte-8
-           #:trigger-nmi-callback #:trigger-irq-callback #:read-cpu #:add-to-stall
-           #:ops))
+  (:export #:make-cpu #:reset #:power-on #:cpu-cycles #:cpu-accumulator #:cpu-pc
+           #:cpu-memory #:step-pc #:fetch #:step-cpu #:make-instruction
+           #:cpu-memory-get #:cpu-memory-set #:to-signed-byte-8 #:read-cpu
+           #:trigger-nmi-callback #:trigger-irq-callback #:add-to-stall))
 
 (in-package :6502-cpu)
 (declaim (optimize (speed 3) (safety 1)))
