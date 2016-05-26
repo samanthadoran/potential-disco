@@ -66,9 +66,9 @@
      (loop for i from 0 to 63
        do
        (let* ((c (aref colors i))
-             (r (wrap-byte (ash c -16)))
-             (g (wrap-byte (ash c -8)))
-             (b (wrap-byte c)))
+              (r (ldb (byte 8 16) c))
+              (g (ldb (byte 8 8) c))
+              (b (ldb (byte 8 0) c)))
          (setf (aref pal i) (make-color :r r :g g :b b))))
      pal)))
 
@@ -238,11 +238,9 @@
   (nmi-change p)
   (setf
    (ppu-tv p)
-   ;Keep it in 15 bits
-   (wrap-word
-    (logior
-     (logand (ppu-tv p) #xF3FF)
-     (ash (logand value 3) 10)))))
+   (logior
+    (logand (ppu-tv p) #xF3FF)
+    (ash (logand value 3) 10))))
 
 (defun write-mask (p value)
   (declare (ppu p) ((unsigned-byte 8) value))
@@ -286,7 +284,7 @@
       (setf result (logior result (ash 1 7))))
     (setf (ppu-nmi-occurred p) nil)
     (nmi-change p)
-    (wrap-byte result)))
+    result))
 
 
 (defun write-oam-address (p value)
@@ -308,21 +306,19 @@
     (progn
      (setf
       (ppu-tv p)
-      (wrap-word
       (logior
        (logand
         (ppu-tv p)
         #xFFE0)
-       (ash value -3))))
+       (ash value -3)))
      (setf (ppu-x p) (logand value #x07))
      (setf (ppu-w p) 1))
     (progn
      (setf
       (ppu-tv p)
-      (wrap-word
       (logior
        (logand (ppu-tv p) #x8FFF)
-       (ash (logand value #x07) 12))))
+       (ash (logand value #x07) 12)))
      (setf
       (ppu-tv p)
       (wrap-word
@@ -337,10 +333,9 @@
     (progn
      (setf
       (ppu-tv p)
-      (wrap-word
-       (logior
-        (logand (ppu-tv p) #x80FF)
-        (ash (logand value #x3F) 8))))
+      (logior
+       (logand (ppu-tv p) #x80FF)
+       (ash (logand value #x3F) 8)))
      (setf (ppu-w p) 1))
     (progn
      (setf
@@ -386,7 +381,7 @@
 
 (defun write-dma (p value)
   (declare (ppu p) ((unsigned-byte 8) value))
-  (let ((address (wrap-word (ash value 8))))
+  (let ((address (ash value 8)))
     (loop for i from 0 to 255
       do
       (progn
@@ -452,7 +447,7 @@
          (if (= y 31)
            (setf y 0)
            (incf y)))
-       (setf (ppu-v p) (wrap-word (logior (logand (ppu-v p) #xFC1F) (ash y 5))))))))
+       (setf (ppu-v p) (logior (logand (ppu-v p) #xFC1F) (ash y 5)))))))
 
 (defun copy-x (p)
   (declare (ppu p))
@@ -490,17 +485,15 @@
   (declare (ppu p))
   (let* ((v (ppu-v p))
          (address
-          (wrap-word
-           (logior
-            #x23C0
-            (logand v #x0C00)
-            (logand #x38 (ash v -4))
-            (logand #x07 (ash v -2)))))
+          (logior
+           #x23C0
+           (logand v #x0C00)
+           (logand #x38 (ash v -4))
+           (logand #x07 (ash v -2))))
          (shift (logior (logand (ash v -4) 4) (logand v 2))))
     (setf
      (ppu-attribute-table p)
-     (wrap-byte
-      (ash (logand (ash (the (unsigned-byte 8) (read-ppu p address)) (* -1 shift)) 3) 2)))))
+     (ash (logand (ash (the (unsigned-byte 8) (read-ppu p address)) (* -1 shift)) 3) 2))))
 
 (defun fetch-low-tile (p)
   (declare (ppu p))
@@ -562,14 +555,12 @@
       (declare (fixnum offset))
       (when (and (>= offset 0) (<= offset 7))
         (setf offset (- 7 offset))
-        (let (
-              (color
-               (wrap-byte
-                (logand
-                 #x0F
-                 (ash
-                  (aref (ppu-sprite-patterns p) i)
-                  (* -1 (wrap-byte (* offset 4))))))))
+        (let ((color
+               (logand
+                #x0F
+                (ash
+                 (aref (ppu-sprite-patterns p) i)
+                 (* -1 (wrap-byte (* offset 4)))))))
           (when (not (= (mod color 4) 0))
             (return-from sprite-pixel (values (wrap-byte i) color)))))))
   (return-from sprite-pixel (values 0 0)))
