@@ -21,16 +21,12 @@
 (defun jsr (c inst)
   (declare (cpu c) (instruction inst))
   "JSR: jump subroutine"
-  (let ((addr (get-address c inst)))
-    (declare ((unsigned-byte 16) addr))
-    (push16 c (wrap-word (- (cpu-pc c) 1)))
-    (setf (cpu-pc c) addr)))
+  (push16 c (wrap-word (- (cpu-pc c) 1)))
+  (setf (cpu-pc c) (get-address c inst)))
 
 (defun jmp-absolute (c inst)
   (declare (cpu c) (instruction inst))
-  (let ((addr (get-address c inst)))
-    (declare ((unsigned-byte 16) addr))
-    (setf (cpu-pc c) addr)))
+  (setf (cpu-pc c) (get-address c inst)))
 
 (defun jmp-indirect (c inst)
   (declare (cpu c) (instruction inst))

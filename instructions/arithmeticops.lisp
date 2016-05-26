@@ -6,30 +6,28 @@
 
 (defun adc (c inst)
   (declare (cpu c) (instruction inst))
-  (let ((a (cpu-accumulator c))
+  (let* ((a (cpu-accumulator c))
         (b (get-value c inst))
-        (carry (if (flags-carry (cpu-sr c)) 1 0)))
+        (carry (if (flags-carry (cpu-sr c)) 1 0))
+        (result (+ a b carry)))
     (declare ((unsigned-byte 8) a b carry))
 
-    (set-zn c (setf (cpu-accumulator c) (wrap-byte (+ a b carry))))
-    (setf
-     (flags-carry (cpu-sr c))
-     (> (+ a b carry) 255))
+    (set-zn c (setf (cpu-accumulator c) (wrap-byte result)))
+    (setf (flags-carry (cpu-sr c)) (> result 255))
     (setf
      (flags-overflow (cpu-sr c))
      (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0))))))
 
 (defun sbc (c inst)
   (declare (cpu c) (instruction inst))
-  (let ((a (cpu-accumulator c))
+  (let* ((a (cpu-accumulator c))
         (b (get-value c inst))
-        (carry (if (flags-carry (cpu-sr c)) 1 0)))
+        (carry (if (flags-carry (cpu-sr c)) 1 0))
+        (result (- a b (- 1 carry))))
     (declare ((unsigned-byte 8) a b carry))
 
-    (set-zn c (setf (cpu-accumulator c) (wrap-byte (- a b (- 1 carry)))))
-    (setf
-     (flags-carry (cpu-sr c))
-     (>= (- a b (- 1 carry)) 0))
+    (set-zn c (setf (cpu-accumulator c) (wrap-byte result)))
+    (setf (flags-carry (cpu-sr c)) (>= result 0))
     (setf
      (flags-overflow (cpu-sr c))
      (and (not (= (logand #x80 (logxor a b)) 0)) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0))))))
@@ -73,15 +71,11 @@
         (carry (if (flags-carry (cpu-sr c)) 1 0)))
     (declare ((unsigned-byte 8) val carry) ((unsigned-byte 16) addr))
 
-    (setf
-     (flags-carry (cpu-sr c))
-     (ldb-test (byte 1 7) val))
+    (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 7) val))
     (set-zn
      c
      (if (equal mode :accumulator)
-      (setf
-       (cpu-accumulator c)
-       (wrap-byte (logior carry (ash val 1))))
+      (setf (cpu-accumulator c) (wrap-byte (logior carry (ash val 1))))
       (write-cpu c addr (wrap-byte (logior carry (ash val 1))))))))
 
 (defun ror (c inst)
@@ -97,8 +91,8 @@
    (set-zn
     c
     (if (equal mode :accumulator)
-     (setf (cpu-accumulator c) (wrap-byte (logior carry (ash val -1))))
-     (write-cpu c addr (wrap-byte (logior carry (ash val -1))))))))
+     (setf (cpu-accumulator c) (logior carry (ash val -1)))
+     (write-cpu c addr (logior carry (ash val -1)))))))
 
 (defun ora (c inst)
   (declare (cpu c) (instruction inst))
@@ -141,27 +135,21 @@
   (declare (cpu c) (instruction inst))
   (let ((val (get-value c inst)))
     (declare ((unsigned-byte 8) val))
-    (setf
-     (flags-carry (cpu-sr c))
-     (>= (cpu-accumulator c) val))
+    (setf (flags-carry (cpu-sr c)) (>= (cpu-accumulator c) val))
     (set-zn c (wrap-byte (- (cpu-accumulator c) val)))))
 
 (defun cpy (c inst)
   (declare (cpu c) (instruction inst))
   (let ((val (get-value c inst)))
     (declare ((unsigned-byte 8) val))
-    (setf
-     (flags-carry (cpu-sr c))
-     (>= (cpu-y c) val))
+    (setf (flags-carry (cpu-sr c)) (>= (cpu-y c) val))
     (set-zn c (wrap-byte (- (cpu-y c) val)))))
 
 (defun cpx (c inst)
   (declare (cpu c) (instruction inst))
   (let ((val (get-value c inst)))
     (declare ((unsigned-byte 8) val))
-    (setf
-     (flags-carry (cpu-sr c))
-     (>= (cpu-x c) val))
+    (setf (flags-carry (cpu-sr c)) (>= (cpu-x c) val))
     (set-zn c (wrap-byte (- (cpu-x c) val)))))
 
 (defun dey (c inst)
