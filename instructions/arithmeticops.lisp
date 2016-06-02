@@ -1,8 +1,7 @@
 (in-package :6502-cpu)
 (declaim (optimize (speed 3) (safety 1)))
 (defun nop (c inst)
-  (declare (cpu c) (instruction inst))
-  (declare (ignore c inst)))
+  (declare (cpu c) (instruction inst) (ignore c inst)))
 
 (defun adc (c inst)
   (declare (cpu c) (instruction inst))
@@ -87,12 +86,12 @@
        (carry (if (flags-carry (cpu-sr c)) 128 0)))
     (declare ((unsigned-byte 8) carry val) ((unsigned-byte 16) addr))
 
-   (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 0) val))
-   (set-zn
-    c
-    (if (equal mode :accumulator)
-     (setf (cpu-accumulator c) (logior carry (ash val -1)))
-     (write-cpu c addr (logior carry (ash val -1)))))))
+    (setf (flags-carry (cpu-sr c)) (ldb-test (byte 1 0) val))
+    (set-zn
+     c
+     (if (equal mode :accumulator)
+       (setf (cpu-accumulator c) (logior carry (ash val -1)))
+       (write-cpu c addr (logior carry (ash val -1)))))))
 
 (defun ora (c inst)
   (declare (cpu c) (instruction inst))
@@ -153,15 +152,13 @@
     (set-zn c (wrap-byte (- (cpu-x c) val)))))
 
 (defun dey (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "DEY: Decrement y register"
-  (declare (ignore inst))
   (set-zn c (setf (cpu-y c) (wrap-byte (- (cpu-y c) 1)))))
 
 (defun dex (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "DEY: Decrement y register"
-  (declare (ignore inst))
   (set-zn c (setf (cpu-x c) (wrap-byte (- (cpu-x c) 1)))))
 
 (defun dec (c inst)
@@ -179,11 +176,9 @@
     (set-zn c (write-cpu c addr (wrap-byte (1+ val))))))
 
 (defun inx (c inst)
-  (declare (cpu c) (instruction inst))
-  (declare (ignore inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   (set-zn c (setf (cpu-x c) (wrap-byte (1+ (cpu-x c))))))
 
 (defun iny (c inst)
-  (declare (cpu c) (instruction inst))
-  (declare (ignore inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   (set-zn c (setf (cpu-y c) (wrap-byte (1+ (cpu-y c))))))

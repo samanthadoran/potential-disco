@@ -29,57 +29,47 @@
   (write-cpu c (get-address c inst) (cpu-x c)))
 
 (defun tax (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "TAX. Transfer accumulator to x"
-  (declare (ignore inst))
   (set-zn c (setf (cpu-x c) (cpu-accumulator c))))
 
 (defun tay (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "TAY. Transfer accumulator to y"
-  (declare (ignore inst))
   (set-zn c (setf(cpu-y c) (cpu-accumulator c))))
 
 (defun txa (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "TXA. Transfer x to accumulator"
-  (declare (ignore inst))
   (set-zn c (setf (cpu-accumulator c) (cpu-x c))))
 
 (defun tya (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "TYA. Transfer y to accumulator"
-  (declare (ignore inst))
   (set-zn c (setf (cpu-accumulator c) (cpu-y c))))
 
 (defun tsx (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "TSX. Transfer stack to x"
-  (declare (ignore inst))
   (set-zn c (setf (cpu-x c) (cpu-sp c))))
 
 (defun txs (c inst)
-  (declare (cpu c) (instruction inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   "TXS. Transfer x to stack"
-  (declare (ignore inst))
   (setf (cpu-sp c) (cpu-x c)))
 
 (defun php (c inst)
-  (declare (cpu c))
-  (declare (ignore inst))
+  (declare (cpu c) (ignore inst))
   (push-stack c (logior #x10 (the (unsigned-byte 8)(make-byte-from-flags (cpu-sr c))))))
 
 (defun pha (c inst)
-  (declare (cpu c) (instruction inst))
-  (declare (ignore inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   (push-stack c (cpu-accumulator c)))
 
 (defun pla (c inst)
-  (declare (cpu c) (instruction inst))
-  (declare (ignore inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   (set-zn c (setf (cpu-accumulator c) (pull-stack c))))
 
 (defun plp (c inst)
-  (declare (cpu c) (instruction inst))
-  (declare (ignore inst))
+  (declare (cpu c) (instruction inst) (ignore inst))
   (setf (cpu-sr c) (make-flags-from-byte (logior #x20 (logand #xEF (pull-stack c))))))

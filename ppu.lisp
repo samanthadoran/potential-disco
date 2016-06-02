@@ -276,9 +276,7 @@
     (setf
      result
      (logior
-      (logior
-       result
-       (ash (ppu-flag-sprite-overflow p) 5))
+      (logior result (ash (ppu-flag-sprite-overflow p) 5))
       (ash (ppu-flag-sprite-zero-hit p) 6)))
     (when (ppu-nmi-occurred p)
       (setf result (logior result (ash 1 7))))
@@ -306,25 +304,16 @@
     (progn
      (setf
       (ppu-tv p)
-      (logior
-       (logand
-        (ppu-tv p)
-        #xFFE0)
-       (ash value -3)))
+      (logior (logand (ppu-tv p) #xFFE0) (ash value -3)))
      (setf (ppu-x p) (logand value #x07))
      (setf (ppu-w p) 1))
     (progn
      (setf
       (ppu-tv p)
-      (logior
-       (logand (ppu-tv p) #x8FFF)
-       (ash (logand value #x07) 12)))
+      (logior (logand (ppu-tv p) #x8FFF) (ash (logand value #x07) 12)))
      (setf
       (ppu-tv p)
-      (wrap-word
-      (logior
-       (logand (ppu-tv p) #xFC1F)
-       (ash (logand value #xF8) 2))))
+      (logior (logand (ppu-tv p) #xFC1F) (ash (logand value #xF8) 2)))
      (setf (ppu-w p) 0))))
 
 (defun write-address (p value)
@@ -338,9 +327,7 @@
        (ash (logand value #x3F) 8)))
      (setf (ppu-w p) 1))
     (progn
-     (setf
-      (ppu-tv p)
-      (logior (logand (ppu-tv p) #xFF00) value))
+     (setf (ppu-tv p) (logior (logand (ppu-tv p) #xFF00) value))
      (setf (ppu-v p) (ppu-tv p))
      (setf (ppu-w p) 0))))
 
@@ -353,9 +340,7 @@
       (let ((buffered (ppu-buffered-data p)))
         (setf (ppu-buffered-data p) value)
         (setf value buffered))
-      (setf
-       (ppu-buffered-data p)
-       (read-ppu p (wrap-word (- (ppu-v p) #x1000)))))
+      (setf (ppu-buffered-data p) (read-ppu p (wrap-word (- (ppu-v p) #x1000)))))
     (setf
      (ppu-v p)
      (wrap-word
@@ -427,11 +412,11 @@
 
 (defun increment-x (p)
   (declare (ppu p))
-  (if (= (logand (ppu-v p) #x001F) 31)
-    (progn
-     (setf (ppu-v p) (logand (ppu-v p) #xFFE0))
-     (setf (ppu-v p) (logxor (ppu-v p) #x0400)))
-    (setf (ppu-v p) (wrap-word (1+ (ppu-v p))))))
+  (setf
+   (ppu-v p)
+   (if (= (logand (ppu-v p) #x001F) 31)
+    (logxor #x0400 (logand (ppu-v p) #xFFE0))
+    (wrap-word (1+ (ppu-v p))))))
 
 (defun increment-y (p)
   (declare (ppu p))
@@ -493,7 +478,7 @@
          (shift (logior (logand (ash v -4) 4) (logand v 2))))
     (setf
      (ppu-attribute-table p)
-     (ash (logand (ash (the (unsigned-byte 8) (read-ppu p address)) (* -1 shift)) 3) 2))))
+     (ash (ldb (byte 2 0) (ash (the (unsigned-byte 8) (read-ppu p address)) (* -1 shift))) 2))))
 
 (defun fetch-low-tile (p)
   (declare (ppu p))
@@ -523,8 +508,7 @@
         (declare ((unsigned-byte 8) a p1 p2))
         (setf (ppu-low-tile p) (wrap-byte (ash (ppu-low-tile p) 1)))
         (setf (ppu-high-tile p) (wrap-byte (ash (ppu-high-tile p) 1)))
-        (setf data (ash data 4))
-        (setf data (logior a p1 p2 data))))
+        (setf data (logior a p1 p2 (ash data 4)))))
     (the (unsigned-byte 64) (setf (ppu-tile-data p) (logior (ppu-tile-data p) data)))))
 
 (defun fetch-tile-data (p)
@@ -641,8 +625,7 @@
              (setf p2 (ash (logand high-tile #x80) -6))
              (setf low-tile (wrap-byte (ash low-tile 1)))
              (setf high-tile (wrap-byte (ash high-tile 1)))))
-          (setf data (logand #xFFFFFFFF (ash data 4)))
-          (setf data (logand #xFFFFFFFF (logior data a p1 p2)))))
+          (setf data (logand #xFFFFFFFF (logior (ash data 4) a p1 p2)))))
       (the (unsigned-byte 32) data))))
 
 (defun evaluate-sprites (p)
@@ -693,7 +676,7 @@
     (when (and (= (ppu-nmi-delay p) 0) (ppu-nmi-output p) (ppu-nmi-occurred p))
       (funcall (ppu-trigger-nmi-callback p))))
   (when
-    (or (not (= 0 (ppu-flag-show-background p))) (not (= 0 (ppu-flag-show-sprites p))))
+    (not (and (= 0 (ppu-flag-show-background p)) (= 0 (ppu-flag-show-sprites p))))
     (when (and
            (= (ppu-f p) 1)
            (= (ppu-scanline p) 261)
@@ -725,11 +708,7 @@
      (let* ((cycle (ppu-cycle p))
             (scanline (ppu-scanline p))
             (rendering-enabled
-             (not
-              (=
-               0
-               (ppu-flag-show-background p)
-               (ppu-flag-show-sprites p))))
+             (not (= 0 (ppu-flag-show-background p) (ppu-flag-show-sprites p))))
             (pre-line (= scanline 261))
             (visible-line (< scanline 240))
             (render-line (or pre-line visible-line))

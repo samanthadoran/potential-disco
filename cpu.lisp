@@ -101,9 +101,8 @@
   (addressing-mode :implicit))
 
 (defun add-to-stall (c)
-  (declare (cpu c))
   (lambda (to-add)
-          (declare ((unsigned-byte 16) to-add))
+          (declare ((unsigned-byte 16) to-add) (cpu c))
           (incf (cpu-stall c) to-add)
           (when (= (mod (cpu-cycles c) 2) 1) (incf (cpu-stall c)))))
 
@@ -427,15 +426,15 @@
 (defun instruction-cycles (c inst)
   (declare (cpu c) (instruction inst))
   (let* ((address (get-address c inst))
-        (mode (instruction-addressing-mode inst))
-        (unmasked (instruction-unmasked-opcode inst))
-        (page-cycles
-         (aref
-          (the (simple-array (unsigned-byte 8) 1) instruction-page-cycles)
-          unmasked)))
-    (declare ((unsigned-byte 16) address))
-    (declare ((unsigned-byte 8) unmasked page-cycles))
-    (declare (type (simple-array (unsigned-byte 8) 1) cycles-per-instruction))
+         (mode (instruction-addressing-mode inst))
+         (unmasked (instruction-unmasked-opcode inst))
+         (page-cycles
+          (aref
+           (the (simple-array (unsigned-byte 8) 1) instruction-page-cycles)
+           unmasked)))
+    (declare ((unsigned-byte 16) address)
+             ((unsigned-byte 8) unmasked page-cycles)
+             (type (simple-array (unsigned-byte 8) 1) cycles-per-instruction))
     (+
      ;Get the number of cycles as per usual
      (aref cycles-per-instruction unmasked)
@@ -463,8 +462,7 @@
         (instruction (gethash (instruction-opcode inst) instructions)))
     (declare ((unsigned-byte 8) cycles) (function instruction))
     (funcall instruction c inst)
-    (incf (cpu-cycles c) cycles)
-    (when (> (cpu-cycles c) 65000) (setf (cpu-cycles c) 0))
+    (setf (cpu-cycles c) (+ cycles (cpu-cycles c)))
     cycles))
 
 (defun nmi (c)
@@ -473,7 +471,7 @@
   (php c nil)
   (setf (cpu-pc c) (read16 c #xFFFA nil))
   (setf (flags-interrupt (cpu-sr c)) T)
-  (incf (cpu-cycles c) 7))
+  (setf (cpu-cycles c) (+ 7 (cpu-cycles c))))
 
 (defun irq (c)
   (declare (cpu c))
@@ -481,7 +479,7 @@
   (php c nil)
   (setf (cpu-pc c) (read16 c #xFFFE nil))
   (setf (flags-interrupt (cpu-sr c)) T)
-  (incf (cpu-cycles c) 7))
+  (setf (cpu-cycles c) (+ 7 (cpu-cycles c))))
 
 (defun step-cpu (c)
   (declare (cpu c))
