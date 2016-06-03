@@ -462,7 +462,7 @@
         (instruction (gethash (instruction-opcode inst) instructions)))
     (declare ((unsigned-byte 8) cycles) (function instruction))
     (funcall instruction c inst)
-    (setf (cpu-cycles c) (+ cycles (cpu-cycles c)))
+    (setf (cpu-cycles c) (wrap-word (+ cycles (cpu-cycles c))))
     cycles))
 
 (defun nmi (c)

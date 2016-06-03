@@ -38,48 +38,48 @@
   (declare (cpu c) (instruction inst))
   (when (not (flags-negative (cpu-sr c)))
     ;Branch taken means increment cycles
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
 
 (defun bmi (c inst)
   (declare (cpu c) (instruction inst))
   (when (flags-negative (cpu-sr c))
     ;Branch taken means increment cycles
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
 
 (defun bcs (c inst)
   (declare (cpu c) (instruction inst))
   (when (flags-carry (cpu-sr c))
     ;Branch taken means increment cycles
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
 
 (defun bvc (c inst)
   (declare (cpu c) (instruction inst))
   (when (not (flags-overflow (cpu-sr c)))
     ;Branch taken means increment cycles
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
 
 (defun bvs (c inst)
   (declare (cpu c) (instruction inst))
   (when (flags-overflow (cpu-sr c))
     ;Branch taken means increment cycles
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
 
 (defun bcc (c inst)
   (declare (cpu c) (instruction inst))
   (when (not (flags-carry (cpu-sr c)))
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
 
 (defun bne (c inst)
   (declare (cpu c) (instruction inst))
   (when (not (flags-zero (cpu-sr c)))
     ;Branch taken means increment cycles
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
 
 
@@ -87,5 +87,5 @@
   (declare (cpu c) (instruction inst))
   (when (flags-zero (cpu-sr c))
     ;Branch taken means increment cycles
-    (incf (cpu-cycles c))
+    (setf (cpu-cycles c) (wrap-word (1+ (cpu-cycles c))))
     (setf (cpu-pc c) (get-address c inst))))
