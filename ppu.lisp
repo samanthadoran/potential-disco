@@ -420,7 +420,7 @@
 
 (defun increment-y (p)
   (declare (ppu p))
-  (if (not (= (logand (ppu-v p) #x7000) #x7000))
+  (if (/= (logand (ppu-v p) #x7000) #x7000)
     (setf (ppu-v p) (wrap-word (+ #x1000 (ppu-v p))))
     (progn
      (setf (ppu-v p) (logand (ppu-v p) #x8FFF))
@@ -545,7 +545,7 @@
                 (ash
                  (aref (ppu-sprite-patterns p) i)
                  (* -1 (wrap-byte (* offset 4)))))))
-          (when (not (= (mod color 4) 0))
+          (when (/= (mod color 4) 0)
             (return-from sprite-pixel (values (wrap-byte i) color)))))))
   (return-from sprite-pixel (values 0 0)))
 
@@ -563,8 +563,8 @@
        (setf background 0))
      (when (and (< x 8) (= (ppu-flag-show-left-sprites p) 0))
        (setf sprite 0))
-     (let ((b (not (= (mod background 4) 0)))
-           (s (not (= (mod sprite 4) 0)))
+     (let ((b (/= (mod background 4) 0))
+           (s (/= (mod sprite 4) 0))
            (color #x00))
        (cond
          ((and (not b) (not s)) (setf color 0))

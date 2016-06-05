@@ -161,7 +161,7 @@
 
 (defun pages-differ (a b)
   (declare ((unsigned-byte 16) a b))
-  (not (= (ldb (byte 8 8) a) (ldb (byte 8 8) b))))
+  (/= (ldb (byte 8 8) a) (ldb (byte 8 8) b)))
 
 (defun read-cpu (c addr)
   (declare (cpu c) ((unsigned-byte 16) addr))
