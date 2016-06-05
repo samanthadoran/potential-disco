@@ -18,7 +18,8 @@
   (ppu (NES-ppu:make-ppu))
   (controllers
    (make-array 2 :initial-contents `(,(nes-controller:make-controller)
-                                     ,(nes-controller:make-controller)))))
+                                     ,(nes-controller:make-controller)))
+   :type (simple-array NES-controller:controller 1)))
 
 (defvar mirror-lookup
   (make-array

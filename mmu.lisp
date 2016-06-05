@@ -107,7 +107,7 @@
           (declare ((unsigned-byte 16) addr) (nes n))
           (if (or (= addr #x4016) (= addr #x4017))
             (NES-controller:read-controller
-             (aref (6502-cpu:cpu-memory (nes:nes-cpu n)) (mod addr 2)))
+             (aref (nes-controllers n) (mod addr 2)))
             0)))
 
 (defun cpu-to-io-write (n)
@@ -115,6 +115,6 @@
           (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val) (nes n))
           (if (or (= addr #x4016) (= addr #x4017))
             (NES-controller:write-controller
-             (aref (6502-cpu:cpu-memory (nes:nes-cpu n)) (mod addr 2))
+             (aref (nes-controllers n) (mod addr 2))
              val)
             0)))
