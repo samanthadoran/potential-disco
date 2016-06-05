@@ -676,7 +676,7 @@
     (when (and (= (ppu-nmi-delay p) 0) (ppu-nmi-output p) (ppu-nmi-occurred p))
       (funcall (ppu-trigger-nmi-callback p))))
   (when
-    (not (and (= 0 (ppu-flag-show-background p)) (= 0 (ppu-flag-show-sprites p))))
+    (or (/= 0 (ppu-flag-show-background p)) (/= 0 (ppu-flag-show-sprites p)))
     (when (and
            (= (ppu-f p) 1)
            (= (ppu-scanline p) 261)
