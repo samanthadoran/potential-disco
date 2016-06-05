@@ -96,29 +96,23 @@
 (defun ora (c inst)
   (declare (cpu c) (instruction inst))
   "ORA: or value with accumulator"
-  (set-zn
-   c
-   (setf
-    (cpu-accumulator c)
-    (logior (cpu-accumulator c) (the (unsigned-byte 8) (get-value c inst))))))
+  (let ((val (get-value c inst)))
+    (declare ((unsigned-byte 8) val))
+    (set-zn c (setf (cpu-accumulator c) (logior val (cpu-accumulator c))))))
 
 (defun eor (c inst)
   (declare (cpu c) (instruction inst))
   "EOR: xor with accumulator"
-  (set-zn
-   c
-   (setf
-    (cpu-accumulator c)
-    (logxor (cpu-accumulator c) (the (unsigned-byte 8) (get-value c inst))))))
+  (let ((val (get-value c inst)))
+    (declare ((unsigned-byte 8) val))
+    (set-zn c (setf (cpu-accumulator c) (logxor val (cpu-accumulator c))))))
 
 (defun anda (c inst)
   (declare (cpu c) (instruction inst))
   "ANDA: and value with accumulator"
-  (set-zn
-   c
-   (setf
-    (cpu-accumulator c)
-    (logand (cpu-accumulator c) (the (unsigned-byte 8) (get-value c inst))))))
+  (let ((val (get-value c inst)))
+    (declare ((unsigned-byte 8) val))
+    (set-zn c (setf (cpu-accumulator c) (logand val (cpu-accumulator c))))))
 
 (defun bit-shadow (c inst)
   (declare (cpu c) (instruction inst))
@@ -163,15 +157,13 @@
 
 (defun dec (c inst)
   (declare (cpu c) (instruction inst))
-  (let ((val (get-value c inst))
-        (addr (get-address c inst)))
+  (let ((val (get-value c inst)) (addr (get-address c inst)))
         (declare ((unsigned-byte 8) val) ((unsigned-byte 16) addr))
     (set-zn c (write-cpu c addr (wrap-byte (- val 1))))))
 
 (defun inc (c inst)
   (declare (cpu c) (instruction inst))
-  (let ((val (get-value c inst))
-        (addr (get-address c inst)))
+  (let ((val (get-value c inst)) (addr (get-address c inst)))
     (declare ((unsigned-byte 8) val) ((unsigned-byte 16) addr))
     (set-zn c (write-cpu c addr (wrap-byte (1+ val))))))
 
