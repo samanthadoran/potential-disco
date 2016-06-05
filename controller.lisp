@@ -23,7 +23,7 @@
     (setf
      (controller-index c)
      (if (not (ldb-test (byte 1 0) (controller-strobe c)))
-       (logand 7 (1+ (controller-index c)))
+       (ldb (byte 3 0) (1+ (controller-index c)))
        0))
     value))
 
