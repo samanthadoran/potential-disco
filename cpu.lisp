@@ -119,11 +119,11 @@
 
 (defun wrap-byte (val)
   (declare ((signed-byte 64) val))
-  (the (unsigned-byte 8) (logand #xFF val)))
+  (ldb (byte 8 0) val))
 
 (defun wrap-word (val)
   (declare ((signed-byte 64) val))
-  (the (unsigned-byte 16) (logand #xFFFF val)))
+  (ldb (byte 16 0) val))
 
 (defun make-byte-from-flags (f)
   (declare (flags f))
@@ -338,8 +338,8 @@
   "Fetch the next instruction from memory"
   (make-instruction
    :unmasked-opcode (read-cpu c (cpu-pc c))
-   :lo-byte (read-cpu c (+ (cpu-pc c) 1))
-   :hi-byte (read-cpu c (+ (cpu-pc c) 2))))
+   :lo-byte (read-cpu c (wrap-word (+ (cpu-pc c) 1)))
+   :hi-byte (read-cpu c (wrap-word (+ (cpu-pc c) 2)))))
 
 (defun determine-addressing-mode (opcode)
   (declare ((unsigned-byte 8) opcode))
@@ -466,7 +466,7 @@
   (php c nil)
   (setf (cpu-pc c) (read16 c #xFFFA nil))
   (setf (flags-interrupt (cpu-sr c)) T)
-  (setf (cpu-cycles c) (+ 7 (cpu-cycles c))))
+  (setf (cpu-cycles c) (wrap-word (+ 7 (cpu-cycles c)))))
 
 (defun irq (c)
   (declare (cpu c))
@@ -474,7 +474,7 @@
   (php c nil)
   (setf (cpu-pc c) (read16 c #xFFFE nil))
   (setf (flags-interrupt (cpu-sr c)) T)
-  (setf (cpu-cycles c) (+ 7 (cpu-cycles c))))
+  (setf (cpu-cycles c) (wrap-word (+ 7 (cpu-cycles c)))))
 
 (defun step-cpu (c)
   (declare (cpu c))
