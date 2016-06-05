@@ -225,9 +225,7 @@
     :overflow nil
     :negative nil))
   (setf (cpu-sp c) #xFD)
-  (setf
-   (cpu-pc c)
-   (read16 c #xFFFC nil)))
+  (setf (cpu-pc c) (read16 c #xFFFC nil)))
 
 (defun pull-stack (c)
   (declare (cpu c))
@@ -249,8 +247,8 @@
 (defun push16 (c val)
   (declare (cpu c) ((unsigned-byte 16) val))
   "Push twice."
-  (push-stack c (ash val -8))
-  (push-stack c (wrap-byte val)))
+  (push-stack c (ldb (byte 8 8) val))
+  (push-stack c (ldb (byte 8 0) val)))
 
 (defun step-pc (c inst)
   (declare (cpu c) (instruction inst))
