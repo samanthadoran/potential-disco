@@ -328,11 +328,10 @@
 (defun get-value (c inst)
   (declare (cpu c) (instruction inst))
   "Get the value from an instruction"
-  (if (equal :immediate (instruction-addressing-mode inst))
-    (instruction-lo-byte inst)
-    (if (equal :accumulator (instruction-addressing-mode inst))
-      (cpu-accumulator c)
-      (read-cpu c (get-address c inst)))))
+  (case (instruction-addressing-mode inst)
+    (:immediate (instruction-lo-byte inst))
+    (:accumulator (cpu-accumulator c))
+    (otherwise (read-cpu c (get-address c inst)))))
 
 (defun fetch (c)
   (declare (cpu c))
