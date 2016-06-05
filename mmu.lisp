@@ -71,22 +71,16 @@
 (defun cpu-to-cart-read (n)
   (lambda (addr)
           (declare ((unsigned-byte 16) addr) (nes n))
-          (aref
-           (the (simple-array (unsigned-byte 8) 1) (NES-cartridge:cartridge-prg-rom (nes-cart n)))
-           (mod
-            addr
-            (array-dimension (the (simple-array (unsigned-byte 8) 1)(NES-cartridge:cartridge-prg-rom (nes-cart n))) 0)))))
+          (let ((prg (NES-cartridge:cartridge-prg-rom (nes-cart n))))
+            (declare ((simple-array (unsigned-byte 8) 1) prg))
+            (aref prg (mod addr (array-dimension prg 0))))))
 
 (defun cpu-to-cart-write (n)
   (lambda (addr val)
           (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val) (nes n))
-          (setf
-           (aref
-            (the (simple-array (unsigned-byte 8) 1)(NES-cartridge:cartridge-prg-rom (nes-cart n)))
-            (mod
-             addr
-             (array-dimension (the (simple-array (unsigned-byte 8) 1)(NES-cartridge:cartridge-prg-rom (nes-cart n))) 0)))
-           val)))
+          (let ((prg (NES-cartridge:cartridge-prg-rom (nes-cart n))))
+            (declare ((simple-array (unsigned-byte 8) 1) prg))
+            (setf (aref prg (mod addr (array-dimension prg 0))) val))))
 
 (defun cpu-to-ppu-read (n)
   (lambda (addr)
