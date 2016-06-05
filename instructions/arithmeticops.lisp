@@ -15,7 +15,7 @@
     (setf (flags-carry (cpu-sr c)) (> result 255))
     (setf
      (flags-overflow (cpu-sr c))
-     (and (= (logand #x80 (logxor a b)) 0) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0))))))
+     (and (= (logand #x80 (logxor a b)) 0) (/= (logand #x80 (logxor a (cpu-accumulator c))) 0)))))
 
 (defun sbc (c inst)
   (declare (cpu c) (instruction inst))
@@ -29,7 +29,7 @@
     (setf (flags-carry (cpu-sr c)) (>= result 0))
     (setf
      (flags-overflow (cpu-sr c))
-     (and (not (= (logand #x80 (logxor a b)) 0)) (not (= (logand #x80 (logxor a (cpu-accumulator c))) 0))))))
+     (and (/= (logand #x80 (logxor a b)) 0) (/= (logand #x80 (logxor a (cpu-accumulator c))) 0)))))
 
 (defun asl (c inst)
   (declare (cpu c) (instruction inst))
