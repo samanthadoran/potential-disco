@@ -302,9 +302,7 @@
   (declare (ppu p) ((unsigned-byte 8) value))
   (if (= (ppu-w p) 0)
     (progn
-     (setf
-      (ppu-tv p)
-      (logior (logand (ppu-tv p) #xFFE0) (ash value -3)))
+     (setf (ppu-tv p) (logior (logand (ppu-tv p) #xFFE0) (ash value -3)))
      (setf (ppu-x p) (logand value #x07))
      (setf (ppu-w p) 1))
     (progn
@@ -322,9 +320,7 @@
     (progn
      (setf
       (ppu-tv p)
-      (logior
-       (logand (ppu-tv p) #x80FF)
-       (ash (logand value #x3F) 8)))
+      (logior (logand (ppu-tv p) #x80FF) (ash (logand value #x3F) 8)))
      (setf (ppu-w p) 1))
     (progn
      (setf (ppu-tv p) (logior (logand (ppu-tv p) #xFF00) value))
@@ -429,9 +425,7 @@
          (progn
           (setf y 0)
           (setf (ppu-v p) (logxor (ppu-v p) #x0800)))
-         (if (= y 31)
-           (setf y 0)
-           (incf y)))
+         (setf y (if (= y 31) 0 (1+ y))))
        (setf (ppu-v p) (logior (logand (ppu-v p) #xFC1F) (ash y 5)))))))
 
 (defun copy-x (p)
@@ -462,9 +456,7 @@
 
 (defun fetch-name-table (p)
   (declare (ppu p))
-  (let* ((v (ppu-v p))
-         (address (logior #x2000 (logand v #x0FFF))))
-    (setf (ppu-name-table p) (read-ppu p address))))
+  (setf (ppu-name-table p) (read-ppu p (logior #x2000 (logand (ppu-v p) #x0FFF)))))
 
 (defun fetch-attribute-table (p)
   (declare (ppu p))
@@ -519,11 +511,9 @@
   (declare (ppu p))
   (if (= (ppu-flag-show-background p) 0)
     0
-    (the (unsigned-byte 8) (logand
-     #x0F
-     (ash
-      (fetch-tile-data p)
-      (the fixnum (* (the fixnum (- 7 (ppu-x p))) 4 -1)))))))
+    (ldb
+     (byte 4 0)
+     (ash (fetch-tile-data p) (the fixnum (* (the fixnum (- 7 (ppu-x p))) 4 -1))))))
 
 (defun sprite-pixel (p)
   (declare (ppu p))
@@ -721,9 +711,7 @@
            (setf
             (ppu-tile-data p)
             ;Make sure it continues to fit in 64 bits
-            (logand
-             #xFFFFFFFFFFFFFFFF
-             (ash (ppu-tile-data p) 4)))
+            (ldb (byte 64 0) (ash (ppu-tile-data p) 4)))
            ;Depending on what cycle we are in act accordingly
            (case (mod cycle 8)
              (0 (store-tile-data p))
