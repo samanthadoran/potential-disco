@@ -6,7 +6,7 @@
   (push16 c (wrap-word (1+ (cpu-pc c))))
   (php c nil)
   (sei c nil)
-  (setf (cpu-pc c) (make-word-from-bytes (read-cpu c #xFFFF) (read-cpu c #xFFFE))))
+  (setf (cpu-pc c) (read16 c #xFFFE nil)))
 
 (defun rti (c inst)
   (declare (cpu c) (instruction inst) (ignore inst))
