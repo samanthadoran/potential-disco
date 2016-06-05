@@ -3,6 +3,7 @@
                (:file "cpu")
                (:file "console"
 		             :depends-on ("cpu" "cartridge" "ppu" "controller"))
+               (:file "mmu")
                (:file "ppu")
                (:file "controller")
                (:file "cartridge")
