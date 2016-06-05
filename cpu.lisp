@@ -183,12 +183,10 @@
 (defun read16 (c addr bug)
   (declare (cpu c) ((unsigned-byte 16) addr))
   "Emulate indirect bugs..."
-  (if bug
-    (let ((lo (read-cpu c addr))
-          (hi (read-cpu c (logior (logand addr #xFF00) (wrap-byte (1+ addr))))))
-      (the (unsigned-byte 16) (make-word-from-bytes hi lo)))
-    (let ((lo (read-cpu c addr)) (hi (read-cpu c (wrap-word (1+ addr)))))
-      (the (unsigned-byte 16) (make-word-from-bytes hi lo)))))
+  (let ((lo (read-cpu c addr))
+        (hi (read-cpu c (wrap-word (1+ addr))))
+        (hi-bug (read-cpu c (logior (logand addr #xFF00) (wrap-byte (1+ addr))))))
+    (the (unsigned-byte 16) (make-word-from-bytes (if bug hi-bug hi) lo))))
 
 (defun write-cpu (c addr val)
   (declare (cpu c) ((unsigned-byte 16) addr) ((unsigned-byte 8) val))
