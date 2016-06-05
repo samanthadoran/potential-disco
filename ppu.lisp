@@ -34,11 +34,11 @@
 
 (defun wrap-byte (val)
   (declare ((unsigned-byte 64) val))
-  (the (unsigned-byte 8) (logand #xFF val)))
+  (ldb (byte 8 0) val))
 
 (defun wrap-word (val)
   (declare ((unsigned-byte 64) val))
-  (the (unsigned-byte 16) (logand #xFFFF val)))
+  (ldb (byte 16 0) val))
 
 (defun to-signed-byte-8 (val)
   (declare ((unsigned-byte 8) val))
@@ -509,15 +509,11 @@
         (setf (ppu-low-tile p) (wrap-byte (ash (ppu-low-tile p) 1)))
         (setf (ppu-high-tile p) (wrap-byte (ash (ppu-high-tile p) 1)))
         (setf data (logior a p1 p2 (ash data 4)))))
-    (the (unsigned-byte 64) (setf (ppu-tile-data p) (logior (ppu-tile-data p) data)))))
+    (setf (ppu-tile-data p) (logior (ppu-tile-data p) data))))
 
 (defun fetch-tile-data (p)
   (declare (ppu p))
-  (the (unsigned-byte 32) (logand
-   #xFFFFFFFF
-   (ash
-    (ppu-tile-data p)
-    -32))))
+  (ldb (byte 32 32) (ppu-tile-data p)))
 
 (defun background-pixel (p)
   (declare (ppu p))
