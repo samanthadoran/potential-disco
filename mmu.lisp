@@ -13,18 +13,14 @@
 (defun ppu-to-name-table-read (n)
   (lambda (addr)
           (declare ((unsigned-byte 16) addr) (nes n))
-          (aref
-           (NES-ppu:ppu-name-table-data (nes-ppu n))
-           (logand (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) #x7ff))))
+          (let ((mirror (logand (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) #x7ff)))
+            (aref (NES-ppu:ppu-name-table-data (nes-ppu n)) mirror))))
 
 (defun ppu-to-name-table-write (n)
   (lambda (addr val)
           (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val) (nes n))
-          (setf
-           (aref
-            (NES-ppu:ppu-name-table-data (nes-ppu n))
-            (logand (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) #x7ff))
-           val)))
+          (let ((mirror (logand (mirror-address (NES-cartridge:cartridge-mirror (nes-cart n)) addr) #x7ff)))
+            (setf (aref (NES-ppu:ppu-name-table-data (nes-ppu n)) mirror) val))))
 
 (defun ppu-to-palette-read (n)
   (lambda (addr)
@@ -89,6 +85,7 @@
           (if (= addr #x4014)
             (NES-ppu:read-register (nes-ppu n) addr)
             (NES-ppu:read-register (nes-ppu n) (mod addr 8)))))
+
 (defun cpu-to-ppu-write (n)
   (lambda (addr val)
           (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val) (nes n))
@@ -109,10 +106,8 @@
           (declare ((unsigned-byte 16) addr) ((unsigned-byte 8) val) (nes n))
           (if (or (= addr #x4016) (= addr #x4017))
             (NES-controller:write-controller
-             (aref (nes-controllers n) (mod addr 2))
-             val)
+             (aref (nes-controllers n) (mod addr 2)) val)
             0)))
-
 
 (defun map-memory (n)
   (setf (NES-ppu:ppu-trigger-nmi-callback (nes-ppu n)) (6502-cpu:trigger-nmi-callback (nes-cpu n)))
