@@ -2,6 +2,7 @@
 Trying to emulate the NES again in Common Lisp  
 
 TODO: Other mapppers besides NROM  
+TODO: Audio  
 TODO: Write more idiomatic Lisp
 #### Examples
 ![Super Mario Bros](https://i.gyazo.com/5b8b161be74281255e48b63db45a7285.gif)
