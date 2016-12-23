@@ -1,6 +1,6 @@
 (defpackage #:NES-console
   (:nicknames #:nes)
-  (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu :NES-controller)
+  (:use :cl :6502-cpu :NES-cartridge :NES-ppu :NES-controller)
   (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes
            #:step-frame #:setup-and-emulate #:render-nes #:read-rom))
 

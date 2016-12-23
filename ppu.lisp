@@ -6,11 +6,9 @@
 ;; As such, this is basically a translation of https://github.com/fogleman/nes/blob/master/nes/ppu.go
 ;; Hopefully, I can eventually gain a better understanding
 
-(in-package :cl-user)
-
 (defpackage #:NES-ppu
   (:nicknames #:ppu)
-  (:use :cl :cl-user)
+  (:use :cl)
   (:export #:step-ppu #:make-ppu #:reset-ppu #:read-register #:write-register
            #:ppu-trigger-nmi-callback #:ppu-front #:ppu-back #:ppu-frame
            #:color-r #:color-g #:color-b #:color #:read-palette #:write-palette

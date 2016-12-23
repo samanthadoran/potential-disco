@@ -1,8 +1,6 @@
-(in-package :cl-user)
-
 (defpackage #:NES-cartridge
   (:nicknames #:nes-cart)
-  (:use :cl :cl-user)
+  (:use :cl)
   (:export #:load-cartridge #:make-cartridge #:cartridge-prg-rom
            #:cartridge-prg-ram #:cartridge-chr-rom #:cartridge-chr-ram
            #:cartridge-mirror))
