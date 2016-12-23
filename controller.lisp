@@ -58,6 +58,5 @@
     (loop :for index :from 0
           :for (button-name . button-key) :in *keymap*
           :do
-             (setf (aref buttons index) (if (sdl2:keyboard-state-p button-key) 1 0))) 
+             (setf (aref buttons index) (if (sdl2:keyboard-state-p button-key) 1 0)))
     buttons))
-
