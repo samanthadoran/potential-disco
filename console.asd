@@ -4,7 +4,7 @@
   :depends-on (#:sdl2)
   :components ((:file "cpu")
                (:file "console" :depends-on ("cpu" "cartridge" "ppu" "controller"))
-               (:file "mmu")
+               (:file "mmu" :depends-on ("controller" "console"))
                (:file "ppu")
                (:file "controller")
                (:file "cartridge")
