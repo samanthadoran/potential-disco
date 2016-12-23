@@ -1,8 +1,9 @@
-(asdf:defsystem #:console
-  :components (
-               (:file "cpu")
-               (:file "console"
-		             :depends-on ("cpu" "cartridge" "ppu" "controller"))
+(in-package #:asdf-user)
+
+(defsystem #:console
+  :depends-on (#:sdl2)
+  :components ((:file "cpu")
+               (:file "console" :depends-on ("cpu" "cartridge" "ppu" "controller"))
                (:file "mmu")
                (:file "ppu")
                (:file "controller")

@@ -1,8 +1,3 @@
-(in-package :cl-user)
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (ql:quickload "sdl2"))
-
 (defpackage #:NES-console
   (:nicknames #:nes)
   (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu :NES-controller)
