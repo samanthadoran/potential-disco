@@ -1,8 +1,6 @@
-(in-package :cl-user)
-
 (defpackage #:6502-cpu
   (:nicknames #:cpu)
-  (:use :cl :cl-user)
+  (:use :cl)
   (:export #:make-cpu #:reset #:power-on #:cpu-cycles #:cpu-accumulator #:cpu-pc
            #:cpu-memory #:step-pc #:fetch #:step-cpu #:make-instruction
            #:cpu-memory-get #:cpu-memory-set #:to-signed-byte-8 #:read-cpu

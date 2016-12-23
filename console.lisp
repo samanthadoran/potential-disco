@@ -1,6 +1,6 @@
 (defpackage #:NES-console
   (:nicknames #:nes)
-  (:use :cl :cl-user :6502-cpu :NES-cartridge :NES-ppu :NES-controller)
+  (:use :cl :6502-cpu :NES-cartridge :NES-ppu :NES-controller)
   (:export #:make-nes #:console-on #:nes-cpu #:nes-ppu #:nes-cart #:step-nes
            #:step-frame #:setup-and-emulate #:render-nes #:read-rom))
 
@@ -25,26 +25,6 @@
 (defun read-rom (n rom-name)
   (declare (nes n))
   (setf (nes-cart n) (NES-cartridge:load-cartridge rom-name)))
-
-(defvar *keymap*
-  '((:a      . :scancode-left)
-    (:b      . :scancode-down)
-    (:select . :scancode-grave)
-    (:start  . :scancode-tab)
-    (:up     . :scancode-w)
-    (:down   . :scancode-s)
-    (:left   . :scancode-a)
-    (:right  . :scancode-d))
-  "The mapping of the controller #1 buttons to SDL keycodes. Caveat Emptor, the
-  button-names are for reference, the mapping is determined by the Order.")
-
-(defun get-buttons ()
-  (let ((buttons (make-array 8 :element-type '(unsigned-byte 8) :initial-element 0)))
-    (loop :for index :from 0
-          :for (button-name . button-key) :in *keymap*
-          :do
-             (setf (aref buttons index) (if (sdl2:keyboard-state-p button-key) 1 0))) 
-    buttons))
 
 (defun console-on (n)
   (declare (nes n))
